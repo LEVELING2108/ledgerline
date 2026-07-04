@@ -18,3 +18,7 @@ backend/.env
 .DS_Store
 Thumbs.db
 *.log
+
+# Design documents
+AI_Finance_Manager_Design_Doc.txt
+AI_Finance_Manager_Design_Doc.docx

@@ -1,205 +1,0 @@
-﻿
-FINAL YEAR PROJECT
-AI-Powered Personal Finance Manager
-End-to-end system design, architecture, and UI/UX specification
-
-Prepared bySouravDegree programsB.Tech ECE, Bharati Vidyapeeth (Deemed University), Pune  |  B.Sc Data Science and Applications, IIT MadrasDocument typeSystem design and UI specification document - web and mobileVersion2.0 - optimized for dual-platform (web and mobile) real-world use
-This document is a complete technical and design blueprint intended to guide implementation, evaluation, and academic documentation of the project.
-
-Table of contents
-1. Executive summary
-2. Problem statement and objectives
-3. System architecture
-4. Technology stack
-5. Data model
-6. Machine learning and agent components in detail
-7. UI and UX design
-7.1 Platform strategy: web and mobile
-7.2 Design principles
-7.3 Color palette
-7.4 Typography
-7.5 Core UI components
-7.6 Screen-by-screen specification
-7.7 Interaction and accessibility notes
-7.8 Landing and marketing page design
-8. API design overview
-9. Evaluation methodology
-10. Security and privacy considerations
-11. Documentation deliverables
-12. Key engineering challenges to anticipate
-
-
-1. Executive summary
-The AI-Powered Personal Finance Manager is a full-stack web application that ingests a user's raw transaction data, automatically categorizes every transaction using a hybrid machine learning and language model pipeline, detects anomalies that may indicate fraud or unusual spending, forecasts future cash flow, and lets the user ask free-form questions about their own money in plain English.
-The project is designed to demonstrate three things at once: solid classical machine learning engineering (classification, anomaly detection, time-series forecasting), modern agentic AI design (a safety-constrained text-to-SQL conversational agent), and complete full-stack product delivery (database design, API design, and a polished, usable interface).
-This document covers the system end to end: problem framing, architecture, data design, every machine learning and agent component, the complete UI/UX design system with screen-by-screen specifications, API structure, evaluation methodology, security considerations, and documentation deliverables.
-2. Problem statement and objectives
-2.1 Problem
-Most people do not have a clear, current picture of their own spending. Manual budgeting requires tedious data entry that people abandon within weeks. Existing auto-categorization tools rely on brittle keyword rules and misclassify transactions constantly, which erodes trust in the numbers they show. Simple dashboards present raw charts but do not answer the actual question a person has in the moment, such as whether this month's spending is unusual, or how much was spent on a specific thing compared to last month.
-2.2 Objectives
-• Automatically categorize transactions with meaningfully higher accuracy than a rule-based baseline.
-• Detect anomalous or potentially fraudulent transactions on a per-user, personalized basis rather than a fixed global threshold.
-• Forecast next month's spending and cash flow trajectory with a quantifiably measured error rate.
-• Allow natural-language questions about the user's own finances to be answered accurately and safely, without hallucinated numbers.
-• Present all of the above through an interface that a non-technical person can use without instructions.
-2.3 Core research question
-Can a hybrid machine learning and language-model-agent pipeline achieve meaningfully better categorization accuracy and more useful financial insight than rule-based categorization, the current industry-standard approach, while remaining fully explainable and safe for the end user to trust?
-3. System architecture
-The system is composed of six layers, each with a single clear responsibility. Data flows in one direction through ingestion, parsing, categorization, anomaly detection, and forecasting, and is exposed to the user through both a visual dashboard and a conversational agent that queries the same underlying data store.
-3.1 High-level data flow
-1. Data ingestion - the user uploads a CSV export, a bank statement PDF, or connects a mock UPI transaction feed.
-2. Transaction parser - raw rows are normalized into a clean schema: date, amount, merchant, description, and transaction type.
-3. Auto-categorization - a two-tier model (fast classifier plus a language-model fallback for ambiguous cases) assigns each transaction a category.
-4. Anomaly detection - a personalized, per-user model scores each transaction for how unusual it is relative to that user's own history.
-5. Forecasting engine - a time-series model projects next month's spend and account balance trajectory.
-6. Presentation layer - a dashboard renders the processed data, and a conversational agent answers free-form questions by generating and safely executing read-only database queries.
-3.2 Component responsibilities
-LayerResponsibilityKey technologyIngestionAccept CSV, PDF, or mock live feed inputFastAPI upload endpoints, pdfplumberParsingClean and normalize messy merchant strings and rowsRegex and fuzzy matchingCategorizationAssign a spending category to every transactionDistilBERT or XGBoost, LLM fallbackAnomaly detectionScore each transaction for how unusual it is for that userIsolation forest or autoencoderForecastingPredict next month's spend and balance trajectoryProphet or LSTMConversational agentAnswer natural-language questions with verified numeric answersLangGraph, text-to-SQL, sandboxed executionStoragePersist users, transactions, categories, forecasts, alertsPostgreSQLPresentationResponsive dashboard, charts, alerts, chat interface, installable on mobile as a Progressive Web AppNext.js, Tailwind, Recharts, service worker4. Technology stack
-LayerChoiceRationaleFrontendNext.js, Tailwind CSS, RechartsFast to build, strong charting support, familiar existing skillsetBackendFastAPIAsync-friendly, well suited to serving models and orchestrating agent callsDatabasePostgreSQLRelational structure fits transactional data; supports pgvector if extended laterCategorization modelFine-tuned DistilBERT or TF-IDF with XGBoostFast, cheap first-tier classifierLanguage modelClaude or GPT APIFallback classification, text-to-SQL generation, answer formattingAnomaly detectionIsolation forest or autoencoder (scikit-learn or PyTorch)Unsupervised, personalized per user, no labeling requiredForecastingProphet or LSTMInterpretable baseline plus a stronger model for comparisonAgent orchestrationLangGraphManages the text-to-SQL flow with validation and retry stepsObservabilityLangfuseTraces every agent decision for the evaluation chapterAuthenticationJWTReusable pattern, standard practice for user-scoped dataMobile deliveryProgressive Web App (next-pwa / manifest + service worker)Installable home-screen app and offline dashboard caching without a separate native codebase5. Data model
-The schema is intentionally simple and normalized. Every table is scoped by user_id so that row-level access control can be enforced cleanly, which matters in particular for the conversational agent's query execution.
-5.1 Core tables
-TableKey fieldsNotesusersid, name, email, password_hash, created_atStandard auth tabletransactionsid, user_id, date, amount, merchant_raw, merchant_clean, description, category_id, anomaly_score, sourceCore table; one row per transactioncategoriesid, name, parent_categorySupports nested categories, e.g. Food > Deliveryforecastsid, user_id, month, predicted_spend, predicted_balance, model_versionRecomputed on a schedulealertsid, user_id, transaction_id, reason, severity, created_at, resolvedGenerated by the anomaly detectoragent_queriesid, user_id, question, generated_sql, answer, created_atLogged for evaluation and debugging6. Machine learning and agent components in detail
-6.1 Auto-categorization model
-A two-tier design is used. The first tier is a lightweight classifier trained on merchant name and description text, mapping to a fixed category set such as food, transport, utilities, shopping, and rent. When this model's confidence falls below a set threshold, typically because the merchant is new or the description is ambiguous, the system falls back to a language model call with a small number of few-shot examples. This hybrid approach avoids the cost and latency of calling a language model for every single transaction while still handling novel cases gracefully.
-6.2 Anomaly detection
-Rather than a single global threshold, the anomaly model is trained per user on that user's own historical spending pattern using an isolation forest or autoencoder. It flags unusually large transactions, spending in a category the user has never used before, multiple transactions in a short time window, and spending that breaks the user's typical weekly or monthly rhythm.
-6.3 Forecasting engine
-Two forecasting approaches are implemented for comparison: Prophet, which is simple and interpretable, and an LSTM, which is more expressive but requires more data. The engine predicts next month's total spend, a category-level breakdown of that spend, and a projected account balance trajectory.
-6.4 Conversational agent (text-to-SQL)
-Financial questions require precise numeric answers, not the fuzzy retrieval that typical retrieval-augmented generation provides. The agent instead translates a natural-language question into a structured, schema-aware SQL query, executes it against PostgreSQL inside a sandbox, and formats the numeric result back into a natural-language answer.
-Two safety constraints are enforced strictly: every generated query is validated to be read-only before execution, and every query is automatically scoped to the requesting user's own data, so the agent can never see or return another user's information.
-7. UI and UX design
-The interface is designed to feel calm and trustworthy, since it is handling a person's financial data. The visual language favors flat surfaces, generous whitespace, and restrained color, reserving strong color only for things that genuinely need attention, such as an anomaly alert.
-Checking finances on the go is the dominant real-world usage pattern for a product like this, so the design is built mobile-first and scales up to a fuller desktop layout, rather than the reverse. Both surfaces are specified in detail below so that either can be implemented first without redesign later.
-7.1 Platform strategy: web and mobile
-The product ships as a single responsive web application built as an installable Progressive Web App, rather than as two separate native codebases. This is the realistic choice for a project of this scope: it gives a genuine home-screen app experience on a phone, including offline caching of the last-loaded dashboard, while keeping one shared codebase, one shared component library, and one deployment pipeline. If native distribution is needed later, the PWA shell can be wrapped for the Play Store and App Store without a rewrite.
-7.1.1 Breakpoints
-BreakpointWidthLayout behaviorMobileUp to 640pxSingle column, bottom tab navigation, full-width cards, chat as a floating action buttonTablet641- 1024pxTwo-column dashboard, side drawer navigation, chat as a docked panelDesktop1025px and abovePersistent left sidebar, three to four column dashboard grid, chat pinned inline7.1.2 Navigation model
-• Mobile - a fixed bottom tab bar with five destinations: Home, Transactions, Trends, Alerts, and Chat, all reachable within thumb reach.
-• Desktop - a persistent left sidebar with the same five destinations plus Settings, since desktop sessions are typically longer and more configuration-oriented.
-• The chat agent is always one tap or click away regardless of platform: a floating action button on mobile, a docked panel on desktop.
-7.2 Design principles
-• Clarity over density - every screen answers one primary question before offering secondary detail.
-• Calm color - neutral surfaces by default; color is reserved for meaning, such as danger for alerts and category identity for charts.
-• One primary action per screen - avoids decision fatigue, especially on the dashboard.
-• Numbers first, charts second - the exact figure is always visible, not just implied by a bar or slice.
-• Conversational access everywhere - the chat agent is reachable from every screen, not buried in a separate tab.
-7.3 Color palette
-The palette below is the application's own brand palette, distinct from any design-tool defaults, chosen to feel trustworthy and calm rather than corporate or alarming.
-SwatchNameHexUsageDeep teal#0F6E56Primary brand color; headers, primary buttons, active statesTeal tint#E1F5EEPositive backgrounds, success states, light chart fillsCoral#993C1DWarnings and category accent; used sparinglyCoral tint#FAECE7Anomaly and alert backgroundsDeep purple#3C3489Secondary category accent for chartsInk#1A1A18Primary textMuted grey#5F5E5ASecondary and supporting textHairline border#D9D7CECard borders and dividers7.4 Typography
-StyleSizeWeightUsagePage title22pxMedium (500)Top of every screen, e.g. Your financesSection heading15-16pxMedium (500)Card and panel headingsBody text14pxRegular (400)Descriptions, chat messagesMetric number24pxMedium (500)Summary card figuresCaption13pxRegular (400)Muted labels above numbersTwo font weights are used throughout, regular and medium. No heavier weights are used, which keeps the interface feeling light rather than corporate.
-7.5 Core UI components
-• Metric card - a muted background block showing a small label above a large number; three across on desktop, a horizontally swipeable row on mobile.
-• Alert banner - a coral-tinted, full-width block with an icon, a bold headline, and one line of detail; reserved only for anomalies that need attention.
-• Category chart - a donut chart paired with a text legend that always shows the exact rupee amount next to the category name, never color alone; legend stacks below the chart on mobile, sits beside it on desktop.
-• Chat panel - a bounded card containing the conversation history and a single text input; docked inline on desktop, expands from a floating action button into a full-screen sheet on mobile.
-• Transaction row - a compact bordered row (not a card) showing date, merchant, category tag, and amount, used in dense list views; on mobile the amount right-aligns and the category tag drops to a second line to preserve tap target size.
-• Bottom tab bar (mobile only) - five fixed icons with labels: Home, Transactions, Trends, Alerts, Chat.
-• Sidebar navigation (desktop only) - persistent left rail with the same destinations plus Settings, showing an active-state highlight in teal.
-7.6 Screen-by-screen specification
-Every screen below is specified for both the mobile layout and the desktop layout, since both are first-class targets for this product.
-7.6.1 Onboarding and upload
-Purpose: get a new user's data into the system with as little friction as possible.
-Mobile layout: 
-• Full-screen upload step with a large tap target for camera capture of a paper statement or file picker for CSV/PDF; one step per screen to avoid crowding a small viewport.
-• Post-upload summary appears as a stacked card sequence the user swipes or scrolls through: count, date range, categorization confidence.
-Desktop layout: 
-• A single centered upload dropzone with drag-and-drop support and a short line of example format guidance, all visible without scrolling.
-• The post-upload summary renders as a single wide card with the three summary stats shown side by side.
-• Both layouts end with a clear call-to-action leading directly into the dashboard.
-7.6.2 Dashboard (home)
-Purpose: answer, at a glance, the three questions a user actually has - how am I doing this month, is anything wrong, and what is coming next.
-Mobile layout: 
-• Metric cards scroll horizontally in a single row below the greeting bar, so the primary number is visible immediately without vertical scrolling.
-• Category chart, alert banner, and a chat entry point stack vertically beneath, in that priority order.
-• Chat is accessed via a floating action button rather than a permanently docked panel, to preserve vertical space.
-Desktop layout: 
-• Three metric cards sit in a fixed row across the top of a wide canvas.
-• Category chart and alert banner sit side by side in a two-column layout below the metrics.
-• The chat panel is permanently docked at the bottom of the same view, always visible without extra taps.
-7.6.3 Transactions list
-Purpose: let the user inspect, search, and correct individual transactions.
-Mobile layout: 
-• Filters collapse into a single filter icon that opens a bottom sheet, keeping the list itself full-width.
-• Each transaction row is taller than on desktop to keep the inline category-correction control easy to tap.
-Desktop layout: 
-• Filters for date range, category, and amount sit permanently visible above the list as inline controls, not hidden behind a sheet.
-• Rows are more compact, allowing more transactions on screen at once, since desktop use tends to be a deliberate review session rather than a quick check.
-7.6.4 Trends and forecast
-Purpose: show the shape of spending over time and what is projected to come.
-Mobile layout: 
-• The line chart is horizontally scrollable with pinch-to-zoom disabled in favor of a simple month-range toggle, since precise zoom gestures are unreliable on small screens.
-• The category-level forecast breakdown appears as a scrollable list below the chart rather than a side panel.
-Desktop layout: 
-• The full six-to-twelve month line chart is visible at once, with the forecasted month rendered as a visually distinct dashed continuation.
-• The category-level breakdown sits in a side panel next to the chart rather than below it, taking advantage of the wider canvas.
-• Both layouts show the same one-line, plain-language AI summary directly above the chart.
-7.6.5 Alerts
-Purpose: give a dedicated place to review every anomaly the system has ever flagged, not just the most recent one.
-Mobile layout: 
-• Alert cards stack full-width with swipe-to-resolve and swipe-to-dismiss gestures.
-Desktop layout: 
-• Alert cards render in a denser list with resolve and dismiss as explicit inline buttons rather than gestures, since desktop interaction is pointer-based.
-• Both layouts keep a collapsed, resolved-alerts section below the active list.
-7.6.6 Chat (full view)
-Purpose: a dedicated, full-height version of the chat panel for longer conversations about the user's finances.
-Mobile layout: 
-• Opens as a full-screen view when tapped from the floating action button, with the input pinned above the keyboard.
-Desktop layout: 
-• Opens as a wide, persistent panel alongside whatever other screen is open, so a question can be asked without losing the current view.
-• Both layouts show an expandable trace under any answer involving a number, revealing the underlying query for transparency.
-7.6.7 Settings
-• Profile and authentication management.
-• Category management, allowing the user to rename, merge, or create categories.
-• Data export and account deletion, handled clearly and without hidden steps.
-• On mobile this renders as a single scrollable list of settings groups; on desktop it renders as a two-column layout with a left-hand settings menu and the active section's detail on the right.
-7.7 Interaction and accessibility notes
-• Every number that reaches the screen is rounded and formatted consistently, using locale-aware currency formatting, on both platforms.
-• Color is never the only signal; every colored chart segment and alert has an accompanying text label.
-• All tap targets on mobile maintain a minimum 44px height, in line with standard mobile accessibility guidance.
-• Font sizes do not shrink below the values in section 7.4 on mobile; layout density changes, not legibility.
-7.8 Landing and marketing page design
-A separate, lightweight marketing page sits in front of the application itself, used for first-time visitors before they sign up. It follows a standard, proven SaaS structure - hero, product preview, feature grid, closing call-to-action - kept in the same brand palette and typography as the application so the transition from marketing site to product feels seamless.
-Mobile layout: 
-• Hero headline and subtext stack centered, single column, with the primary call-to-action button full-width for easy tapping.
-• The product preview block (metric cards) stacks vertically instead of sitting in a row.
-• The feature grid collapses from three columns to a single column, one card per row.
-Desktop layout: 
-• Hero, product preview, and feature grid use the wider canvas for a three-column feature grid and a horizontally arranged product preview, as already shown in the mockup earlier in this conversation.
-• A persistent top navigation bar with Features, Pricing, Docs, and a Get Started button; on mobile this collapses into a simple logo plus a single Get Started button, with other links moved into a menu.
-8. API design overview
-EndpointMethodPurpose/auth/register, /auth/loginPOSTUser registration and authentication, issuing a JWT/transactions/uploadPOSTAccepts a CSV or PDF and triggers the parsing pipeline/transactionsGETReturns a paginated, filterable list of the user's transactions/transactions/{id}/categoryPATCHApplies a manual category correction, feeding the active-learning loop/insights/summaryGETReturns the dashboard's summary metrics/insights/forecastGETReturns the forecast for the requested horizon/alertsGETReturns open and resolved anomaly alerts/agent/askPOSTAccepts a natural-language question and returns a verified answer9. Evaluation methodology
-Evaluation is designed to produce clear, defensible, quantitative results rather than anecdotal demos.
-9.1 Categorization
-Precision, recall, and F1 are measured per category, comparing four configurations: the hybrid model, the machine learning tier alone, the language model alone, and a simple rule-based baseline. This four-way comparison is the headline result for the categorization component.
-9.2 Anomaly detection
-Synthetic anomalies are injected into otherwise normal transaction data with known ground truth, and precision, recall, and false-positive rate are measured against that ground truth. False-positive rate is weighted heavily, since a system that cries wolf too often will simply be ignored by real users.
-9.3 Forecasting
-Mean absolute percentage error and root mean squared error are measured against held-out actual data, comparing Prophet against the LSTM model.
-9.4 Conversational agent
-Exact-match and semantic-match rates are measured on a test set of natural-language questions with known correct answers, alongside a specific measurement of how often the agent correctly refuses or flags out-of-scope or ambiguous questions rather than guessing.
-9.5 System-level
-Latency and cost per transaction and per query are recorded throughout, since the language-model fallback and the verification steps are not free, and this tradeoff is worth reporting explicitly.
-10. Security and privacy considerations
-• All financial data is scoped strictly by user_id, enforced at the database query level, not only in application logic.
-• Every query generated by the conversational agent is validated to be read-only before execution.
-• Passwords are hashed, never stored in plain text; JWTs are short-lived with refresh handling.
-• Uploaded files are validated and sandboxed before parsing to prevent malicious file content from affecting the system.
-• Since this is an academic project, real personal bank data should be used sparingly and only with explicit consent from the data owner; synthetic data should be the default for development and testing.
-11. Documentation deliverables
-• System design document - this document, covering architecture, data flow, and schema.
-• Model cards - for the categorization, anomaly detection, and forecasting models, covering training data, metrics, and known limitations.
-• API documentation - generated from FastAPI's OpenAPI schema, with added usage examples.
-• Evaluation report - the comparison tables and metrics described in section 9, with supporting charts.
-• User guide - how to upload data, read the dashboard, and use the chat interface.
-• Project README - setup instructions, architecture overview, and a demo walkthrough.
-12. Key engineering challenges to anticipate
-• Merchant name normalization is messier in practice than it appears; real transaction descriptions are inconsistent and require real cleanup effort.
-• Category class imbalance - common categories like food will vastly outnumber rare ones like insurance, requiring class weighting or oversampling during training.
-• Text-to-SQL safety - strict validation and row-level scoping are non-negotiable, not an afterthought.
-• Cold start for anomaly detection - a new user has no history to learn from, requiring a population-level fallback model until enough personal history accumulates.
-• Forecast degradation with irregular income - worth discussing openly as a limitation rather than concealing it.
-AI-Powered Personal Finance Manager - Design Document
-
-Page  of 
-
