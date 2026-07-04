@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  @apply bg-cream text-ink dark:bg-cream-dark dark:text-ink-dark;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  @apply border-hairline dark:border-hairline-dark;
+}
+
+/* Only subtle transitions — brief explicitly rules out gamified motion */
+button,
+a,
+input,
+select {
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+/* Visible keyboard focus everywhere, never suppressed */
+:focus-visible {
+  outline: 2px solid #0f6e56;
+  outline-offset: 2px;
+}
+.dark :focus-visible {
+  outline-color: #2fbf9b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
