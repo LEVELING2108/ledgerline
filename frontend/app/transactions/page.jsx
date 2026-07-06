@@ -58,7 +58,7 @@ export default function TransactionsPage() {
   return (
     <div className="min-h-screen bg-cream dark:bg-cream-dark">
       <NavBar />
-      <main className="mx-auto max-w-5xl space-y-4 px-4 py-6 md:px-6">
+      <main className="mx-auto max-w-5xl space-y-4 px-4 pt-6 pb-24 md:py-6 md:px-6">
         <p className="text-page-title text-ink dark:text-ink-dark">Transactions</p>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
