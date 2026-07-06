@@ -24,12 +24,13 @@ async def get_summary_metrics(
     )
     user_txs = tx_result.scalars().all()
     
-    total_spend = sum(t.amount for t in user_txs if t.amount < 0)
+    total_spend = sum(t.amount for t in user_txs if t.amount < 0 and t.category != "Investment")
+    total_investment = sum(abs(t.amount) for t in user_txs if t.category == "Investment")
     
     # Category breakdown
     categories_breakdown = {}
     for t in user_txs:
-        if t.amount < 0:
+        if t.amount < 0 and t.category != "Investment":
             categories_breakdown[t.category] = categories_breakdown.get(t.category, 0.0) + abs(t.amount)
             
     breakdown_list = [
@@ -58,7 +59,8 @@ async def get_summary_metrics(
                 {"category": "Transport", "amount": 2600},
                 {"category": "Utilities", "amount": 1800},
                 {"category": "Entertainment", "amount": 1500},
-            ]
+            ],
+            "total_investment": 5000.0
         }
         
     return {
@@ -66,7 +68,8 @@ async def get_summary_metrics(
         "delta_label": "computed from uploaded statement",
         "tone": "neutral" if total_spend == 0 else ("positive" if total_spend > -40000 else "negative"),
         "open_anomalies_count": open_alerts_count,
-        "category_breakdown": breakdown_list
+        "category_breakdown": breakdown_list,
+        "total_investment": total_investment
     }
 
 

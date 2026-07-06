@@ -1,4 +1,4 @@
-export const categories = ["Groceries", "Dining", "Transport", "Utilities", "Rent", "Entertainment"];
+export const categories = ["Groceries", "Dining", "Transport", "Utilities", "Rent", "Entertainment", "Investment"];
 
 // Category → semantic color key, cycled across the limited reserved palette
 export const categoryColorKey = (category) => {
@@ -9,6 +9,7 @@ export const categoryColorKey = (category) => {
     Transport: "muted",
     Utilities: "purple",
     Entertainment: "teal",
+    Investment: "purple",
   };
   return map[category] || "muted";
 };
