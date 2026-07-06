@@ -62,7 +62,11 @@ async def upload_transactions(
     db_transactions = []
     for raw in raw_transactions:
         # Run ML categorizer
-        category = categorize_transaction(raw["merchant"], raw.get("description", ""))
+        category = categorize_transaction(
+            raw["merchant"],
+            raw.get("description", ""),
+            user_id=current_user.id
+        )
         
         db_tx = Transaction(
             user_id=current_user.id,
@@ -79,8 +83,11 @@ async def upload_transactions(
     await db.commit()
     
     # 3. Run anomaly detection logic on new transactions
-    # Fetch all user's transactions to retrain or pass context
     await detect_anomalies_for_user(db, current_user.id)
+
+    # 4. Retrain the personalized categorizer model (Active Learning)
+    from app.services.categorizer import retrain_user_model_async
+    await retrain_user_model_async(db, current_user.id)
     
     return {
         "message": "Import complete",
@@ -105,9 +112,13 @@ async def update_transaction_category(
         
     if tx_in.category is not None:
         transaction.category = tx_in.category
-        # Feeding active learning loop: logic can trigger retraining or store user override here
         
     db.add(transaction)
     await db.commit()
     await db.refresh(transaction)
+
+    # Retrain model after manual correction (Active Learning Loop)
+    from app.services.categorizer import retrain_user_model_async
+    await retrain_user_model_async(db, current_user.id)
+
     return transaction
