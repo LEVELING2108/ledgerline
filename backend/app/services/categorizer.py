@@ -1,7 +1,19 @@
 import os
-from typing import Dict
+import pickle
+from typing import Dict, List, Optional
 from openai import OpenAI
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
+from app.models.models import Transaction
+
+# Directory to save user-specific ML models
+MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "models")
+os.makedirs(MODELS_DIR, exist_ok=True)
 
 # Lightweight baseline categorizer keyword mapping
 CATEGORIES_KEYWORDS = {
@@ -14,15 +26,86 @@ CATEGORIES_KEYWORDS = {
 }
 
 
-def categorize_transaction(merchant: str, description: str) -> str:
+def get_user_model_path(user_id: str) -> str:
+    return os.path.join(MODELS_DIR, f"{user_id}_categorizer.pkl")
+
+
+def train_user_model(user_id: str, transactions_data: List[Dict[str, str]]) -> bool:
+    """
+    Trains a personalized TF-IDF + LogisticRegression pipeline on the user's categorized transactions.
+    """
+    texts = []
+    labels = []
+    for tx in transactions_data:
+        text = f"{tx['merchant']} {tx.get('description', '')}".strip().lower()
+        if text and tx['category'] and tx['category'] not in ("Other", "All"):
+            texts.append(text)
+            labels.append(tx['category'])
+
+    # Need at least 8 samples and 2 unique classes to train a text classifier
+    if len(texts) < 8 or len(set(labels)) < 2:
+        return False
+
+    try:
+        pipeline = Pipeline([
+            ('tfidf', TfidfVectorizer(ngram_range=(1, 2), min_df=1)),
+            ('clf', LogisticRegression(C=1.0, max_iter=1000))
+        ])
+        pipeline.fit(texts, labels)
+
+        # Save the model
+        model_path = get_user_model_path(user_id)
+        with open(model_path, "wb") as f:
+            pickle.dump(pipeline, f)
+        return True
+    except Exception as e:
+        print(f"Error training model for user {user_id}: {str(e)}")
+        return False
+
+
+async def retrain_user_model_async(db: AsyncSession, user_id: str) -> bool:
+    """
+    Fetches all historical transactions for a user from database and triggers retraining.
+    """
+    result = await db.execute(
+        select(Transaction).where(Transaction.user_id == user_id)
+    )
+    transactions = result.scalars().all()
+    tx_data = [
+        {"merchant": t.merchant, "description": t.source, "category": t.category}
+        for t in transactions
+    ]
+    return train_user_model(user_id, tx_data)
+
+
+def categorize_transaction(merchant: str, description: str, user_id: Optional[str] = None) -> str:
     """
     Categorization pipeline:
-    Tier 1: Fast baseline classification using keyword matching & rules.
-    Tier 2: If keyword match confidence is low, fall back to OpenAI LLM categorization.
+    Tier 1: Personalized machine learning classifier (if trained & confidence is high).
+    Tier 2: Fast baseline classification using keyword matching & rules.
+    Tier 3: Fallback to OpenAI LLM categorization if key is configured.
     """
     text_to_match = f"{merchant} {description}".lower()
-    
-    # Tier 1: Search for matches
+
+    # Tier 1: Machine Learning Classifier (User Specific)
+    if user_id:
+        model_path = get_user_model_path(user_id)
+        if os.path.exists(model_path):
+            try:
+                with open(model_path, "rb") as f:
+                    pipeline = pickle.load(f)
+                
+                probs = pipeline.predict_proba([text_to_match.strip()])[0]
+                max_idx = probs.argmax()
+                confidence = probs[max_idx]
+                
+                # Confidence threshold of 70%
+                if confidence >= 0.70:
+                    return pipeline.classes_[max_idx]
+            except Exception:
+                pass  # Fall back to keywords on model loading/prediction error
+
+    # Tier 2: Keyword matches
     matched_category = None
     for category, keywords in CATEGORIES_KEYWORDS.items():
         for keyword in keywords:
@@ -35,8 +118,8 @@ def categorize_transaction(merchant: str, description: str) -> str:
     if matched_category:
         return matched_category
         
-    # Tier 2: LLM Fallback if OpenAI key is configured
-    if settings.OPENAI_API_KEY:
+    # Tier 3: LLM Fallback if OpenAI key is configured
+    if settings.OPENAI_API_KEY and "your-openai-api-key" not in settings.OPENAI_API_KEY:
         try:
             client = OpenAI(api_key=settings.OPENAI_API_KEY)
             prompt = (
@@ -60,3 +143,4 @@ def categorize_transaction(merchant: str, description: str) -> str:
             pass  # Fallback to general category on error
             
     return "Other"
+

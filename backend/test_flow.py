@@ -1,7 +1,7 @@
 import httpx
 import json
 
-BASE_URL = "http://127.0.0.1:8000/api/v1"
+BASE_URL = "http://127.0.0.1:8080/api/v1"
 
 def run_tests():
     print("=== STARTING END-TO-END FLOW VALIDATION ===")

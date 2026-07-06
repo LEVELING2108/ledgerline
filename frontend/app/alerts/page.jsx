@@ -77,7 +77,7 @@ export default function AlertsPage() {
   const dismiss = async (id) => {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
     try {
-      await fetch(`http://localhost:8000/api/v1/alerts/${id}`, {
+      await fetch(`http://localhost:8080/api/v1/alerts/${id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${window.localStorage.getItem("ledgerline_token")}`
