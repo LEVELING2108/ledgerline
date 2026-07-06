@@ -26,6 +26,31 @@ CATEGORIES_KEYWORDS = {
 }
 
 
+import re
+
+def clean_merchant_string(merchant: str, description: str = "") -> str:
+    """
+    Cleans raw bank narration and merchant descriptions by removing transaction IDs,
+    UPI IDs, location noise, and formatting tags to extract the core merchant name.
+    """
+    combined = f"{merchant} {description}".lower().strip()
+    
+    # 1. Remove UPI handles (e.g. upi/swiggy@okaxis or @ybl, etc.)
+    combined = re.sub(r'@[a-zA-Z0-9]+', '', combined)
+    
+    # 2. Remove standard long transaction/ref/terminal IDs (6+ digits)
+    combined = re.sub(r'\b\d{6,}\b', '', combined)
+    
+    # 3. Remove common transaction prefixes/suffixes
+    combined = re.sub(r'\b(upi|pos|debit|credit|card|txn|ref|chq|transfer|payment|netbanking|to|from|prv|pay|wallet)\b', ' ', combined)
+    
+    # 4. Clean extra spaces and special characters
+    combined = re.sub(r'[^a-zA-Z0-9\s]', ' ', combined)
+    combined = re.sub(r'\s+', ' ', combined).strip()
+    
+    return combined
+
+
 def get_user_model_path(user_id: str) -> str:
     return os.path.join(MODELS_DIR, f"{user_id}_categorizer.pkl")
 
@@ -37,7 +62,7 @@ def train_user_model(user_id: str, transactions_data: List[Dict[str, str]]) -> b
     texts = []
     labels = []
     for tx in transactions_data:
-        text = f"{tx['merchant']} {tx.get('description', '')}".strip().lower()
+        text = clean_merchant_string(tx['merchant'], tx.get('description', ''))
         if text and tx['category'] and tx['category'] not in ("Other", "All"):
             texts.append(text)
             labels.append(tx['category'])
@@ -85,7 +110,7 @@ def categorize_transaction(merchant: str, description: str, user_id: Optional[st
     Tier 2: Fast baseline classification using keyword matching & rules.
     Tier 3: Fallback to OpenAI LLM categorization if key is configured.
     """
-    text_to_match = f"{merchant} {description}".lower()
+    text_to_match = clean_merchant_string(merchant, description)
 
     # Tier 1: Machine Learning Classifier (User Specific)
     if user_id:
