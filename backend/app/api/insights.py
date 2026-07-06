@@ -31,7 +31,11 @@ async def get_summary_metrics(
     categories_breakdown = {}
     for t in user_txs:
         if t.amount < 0 and t.category != "Investment":
-            categories_breakdown[t.category] = categories_breakdown.get(t.category, 0.0) + abs(t.amount)
+            if abs(t.amount) < 150.0 and t.category in ("Dining", "Transport", "Entertainment", "Shopping", "Other"):
+                cat_name = "Chai & UPI Micro-Spends"
+            else:
+                cat_name = t.category
+            categories_breakdown[cat_name] = categories_breakdown.get(cat_name, 0.0) + abs(t.amount)
             
     breakdown_list = [
         {"category": k, "amount": v} for k, v in categories_breakdown.items()
