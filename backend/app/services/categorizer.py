@@ -26,7 +26,8 @@ CATEGORIES_KEYWORDS = {
     "Transport": ["ola", "uber", "cab", "metro", "auto", "petrol", "fuel"],
     "Utilities": ["airtel", "jio", "electricity", "water", "gas", "recharge", "broadband"],
     "Rent": ["rent", "landlord", "flat", "pg"],
-    "Entertainment": ["bookmyshow", "netflix", "spotify", "pos terminal", "movie", "gaming"]
+    "Entertainment": ["bookmyshow", "netflix", "spotify", "pos terminal", "movie", "gaming"],
+    "Investment": ["groww", "zerodha", "mutual fund", "cams", "karvy", "sip", "ppf", "nps", "mutualfund", "indmoney", "etmoney", "axis mutual", "sbi mutual"]
 }
 
 
@@ -232,7 +233,7 @@ def categorize_transaction(
             client = OpenAI(api_key=settings.OPENAI_API_KEY)
             prompt = (
                 f"Categorize the following bank transaction merchant/description into one of the categories:\n"
-                f"Categories: Groceries, Dining, Transport, Utilities, Rent, Entertainment, Shopping, Other.\n"
+                f"Categories: Groceries, Dining, Transport, Utilities, Rent, Entertainment, Shopping, Investment, Other.\n"
                 f"Transaction: '{merchant} - {description}'\n"
                 f"Return only the category name as a single word."
             )
@@ -244,7 +245,7 @@ def categorize_transaction(
             )
             category_candidate = response.choices[0].message.content.strip()
             # Clean response
-            for cat in ["Groceries", "Dining", "Transport", "Utilities", "Rent", "Entertainment", "Shopping"]:
+            for cat in ["Groceries", "Dining", "Transport", "Utilities", "Rent", "Entertainment", "Shopping", "Investment"]:
                 if cat.lower() in category_candidate.lower():
                     return cat
         except Exception:
