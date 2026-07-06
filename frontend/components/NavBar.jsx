@@ -116,3 +116,4 @@ export default function NavBar({ userName = "Sourav Kumar" }) {
       </nav>
     </>
   );
+}
