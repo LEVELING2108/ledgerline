@@ -54,6 +54,7 @@ def run_tests():
             "2026-07-03,Luxury Store,-45000.00,Huge purchase\n"
             "2026-07-04,Local Tea Vendor,-45.00,Chai UPI payment\n"
             "2026-07-04,Auto Rickshaw,-80.00,Fare payment\n"
+            "2026-07-04,Self Transfer,-10000.00,Transfer to self SBI account\n"
         )
         
         files = {"file": ("statement.csv", csv_content, "text/csv")}
