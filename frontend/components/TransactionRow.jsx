@@ -33,7 +33,11 @@ export default function TransactionRow({
   anomaly = false,
   categoryOptions = [],
   onCategoryChange,
+  splitRatio = 1,
+  onSplitChange,
 }) {
+  const shareAmount = amount / splitRatio;
+
   return (
     <div
       className="flex items-center gap-3 border-b border-hairline px-2 py-2.5 text-body
@@ -58,15 +62,38 @@ export default function TransactionRow({
         ))}
       </select>
 
-      <span
-        className={`w-24 shrink-0 text-right font-medium ${
-          anomaly
-            ? "text-coral dark:text-coral-dark"
-            : "text-ink dark:text-ink-dark"
-        }`}
+      {/* Split Selector */}
+      <select
+        value={splitRatio}
+        onChange={(e) => onSplitChange?.(Number(e.target.value))}
+        aria-label={`Split count for ${merchant}`}
+        className="rounded-pill border border-hairline bg-cream px-1.5 py-0.5 text-caption
+                   text-muted focus:border-teal dark:border-hairline-dark dark:bg-cream-dark
+                   dark:text-muted-dark dark:focus:border-teal-dark"
       >
-        {rupee(amount)}
-      </span>
+        <option value={1}>No Split</option>
+        <option value={2}>1:2 Split</option>
+        <option value={3}>1:3 Split</option>
+        <option value={4}>1:4 Split</option>
+        <option value={5}>1:5 Split</option>
+      </select>
+
+      <div className="w-24 shrink-0 text-right">
+        <span
+          className={`font-medium ${
+            anomaly
+              ? "text-coral dark:text-coral-dark"
+              : "text-ink dark:text-ink-dark"
+          }`}
+        >
+          {rupee(amount)}
+        </span>
+        {splitRatio > 1 && (
+          <p className="text-[11px] leading-tight text-muted dark:text-muted-dark">
+            Share: {rupee(shareAmount)}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

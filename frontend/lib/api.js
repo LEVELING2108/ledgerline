@@ -78,17 +78,21 @@ export async function uploadStatement(file) {
   return res.json();
 }
 
-export async function updateTransactionCategory(id, category) {
+export async function updateTransaction(id, updates) {
   const res = await fetch(`${API_BASE}/transactions/${id}/category`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       ...getHeaders(),
     },
-    body: JSON.stringify({ category }),
+    body: JSON.stringify(updates),
   });
-  if (!res.ok) throw new Error("Failed to update transaction category");
+  if (!res.ok) throw new Error("Failed to update transaction");
   return res.json();
+}
+
+export async function updateTransactionCategory(id, category) {
+  return updateTransaction(id, { category });
 }
 
 export async function getSummary() {

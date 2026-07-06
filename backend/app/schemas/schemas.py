@@ -45,6 +45,7 @@ class TransactionBase(BaseModel):
     category: str
     anomaly: bool = False
     source: str = "upload"
+    split_ratio: int = 1
 
 
 class TransactionCreate(TransactionBase):
@@ -54,6 +55,7 @@ class TransactionCreate(TransactionBase):
 class TransactionUpdate(BaseModel):
     category: Optional[str] = None
     anomaly: Optional[bool] = None
+    split_ratio: Optional[int] = None
 
 
 class TransactionResponse(TransactionBase):

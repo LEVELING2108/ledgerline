@@ -4,6 +4,8 @@ from app.core.config import settings
 from app.core.database import Base, engine
 from app.api.api import api_router
 
+from sqlalchemy import text
+
 # Initialize FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -26,6 +28,8 @@ async def on_startup():
     # Automatically bootstrap and create tables on app start
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Dynamically append split_ratio column if it does not exist
+        await conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS split_ratio INTEGER DEFAULT 1"))
 
 
 # Include APIs
