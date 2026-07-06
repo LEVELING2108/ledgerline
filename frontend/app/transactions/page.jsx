@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import NavBar from "../../components/NavBar";
 import TransactionRow from "../../components/TransactionRow";
-import { getTransactions, updateTransactionCategory, updateTransaction } from "../../lib/api";
+import { getTransactions, updateTransactionCategory } from "../../lib/api";
 import { transactions as initialTransactions, categories, categoryColorKey } from "../../lib/mockData";
 
 export default function TransactionsPage() {
@@ -55,17 +55,6 @@ export default function TransactionsPage() {
       await updateTransactionCategory(id, nextCategory);
     } catch (e) {
       console.error("Failed to update transaction category on backend", e);
-    }
-  };
-
-  const updateSplitRatio = async (id, nextSplit) => {
-    setRows((prev) => prev.map((t) => (t.id === id ? { ...t, split_ratio: nextSplit } : t)));
-    setToast({ show: true, message: `Bill split updated: Adjusted your share to 1/${nextSplit}...` });
-    setTimeout(() => setToast({ show: false, message: "" }), 3000);
-    try {
-      await updateTransaction(id, { split_ratio: nextSplit });
-    } catch (e) {
-      console.error("Failed to update transaction split ratio on backend", e);
     }
   };
 
@@ -129,8 +118,6 @@ export default function TransactionsPage() {
                 anomaly={t.anomaly}
                 categoryOptions={categories}
                 onCategoryChange={(next) => updateCategory(t.id, next)}
-                splitRatio={t.split_ratio || 1}
-                onSplitChange={(nextSplit) => updateSplitRatio(t.id, nextSplit)}
               />
             ))
           )}

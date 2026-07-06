@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8080/api/v1";
+const API_BASE = "http://10.68.35.120:8080/api/v1";
 
 // Helper to get auth headers
 function getHeaders() {
