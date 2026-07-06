@@ -1,10 +1,14 @@
 import os
 import pickle
-from typing import Dict, List, Optional
+import pandas as pd
+from datetime import datetime
+from typing import Dict, List, Optional, Any
 from openai import OpenAI
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,32 +30,107 @@ CATEGORIES_KEYWORDS = {
 }
 
 
+import re
+
+def clean_merchant_string(merchant: str, description: str = "") -> str:
+    """
+    Cleans raw bank narration and merchant descriptions by removing transaction IDs,
+    UPI IDs, location noise, and formatting tags to extract the core merchant name.
+    """
+    combined = f"{merchant} {description}".lower().strip()
+    
+    # 1. Remove UPI handles (e.g. upi/swiggy@okaxis or @ybl, etc.)
+    combined = re.sub(r'@[a-zA-Z0-9]+', '', combined)
+    
+    # 2. Remove standard long transaction/ref/terminal IDs (6+ digits)
+    combined = re.sub(r'\b\d{6,}\b', '', combined)
+    
+    # 3. Remove common transaction prefixes/suffixes
+    combined = re.sub(r'\b(upi|pos|debit|credit|card|txn|ref|chq|transfer|payment|netbanking|to|from|prv|pay|wallet)\b', ' ', combined)
+    
+    # 4. Clean extra spaces and special characters
+    combined = re.sub(r'[^a-zA-Z0-9\s]', ' ', combined)
+    combined = re.sub(r'\s+', ' ', combined).strip()
+    
+    return combined
+
+
 def get_user_model_path(user_id: str) -> str:
     return os.path.join(MODELS_DIR, f"{user_id}_categorizer.pkl")
 
 
-def train_user_model(user_id: str, transactions_data: List[Dict[str, str]]) -> bool:
-    """
-    Trains a personalized TF-IDF + LogisticRegression pipeline on the user's categorized transactions.
-    """
-    texts = []
-    labels = []
+def build_features_df(transactions_data: List[Dict[str, Any]]) -> pd.DataFrame:
+    df_rows = []
     for tx in transactions_data:
-        text = f"{tx['merchant']} {tx.get('description', '')}".strip().lower()
-        if text and tx['category'] and tx['category'] not in ("Other", "All"):
-            texts.append(text)
-            labels.append(tx['category'])
+        text = clean_merchant_string(tx['merchant'], tx.get('description', ''))
+        
+        # Parse date to extract day of month and day of week
+        try:
+            # Handle possible datetime objects or raw string
+            dt_str = tx.get('date') or ""
+            if isinstance(dt_str, datetime):
+                dt = dt_str
+            else:
+                dt = datetime.strptime(dt_str.split("T")[0], "%Y-%m-%d")
+            day_of_month = dt.day
+            day_of_week = dt.weekday()
+        except Exception:
+            day_of_month = 15
+            day_of_week = 3
+            
+        # Amount: standard spending is negative, take absolute value for ML
+        amount = abs(float(tx.get('amount') or 0.0))
+        
+        df_rows.append({
+            "text": text,
+            "amount": amount,
+            "day_of_month": day_of_month,
+            "day_of_week": day_of_week
+        })
+    return pd.DataFrame(df_rows)
 
-    # Need at least 8 samples and 2 unique classes to train a text classifier
-    if len(texts) < 8 or len(set(labels)) < 2:
+
+def get_user_model_path(user_id: str) -> str:
+    return os.path.join(MODELS_DIR, f"{user_id}_categorizer.pkl")
+
+
+def train_user_model(user_id: str, transactions_data: List[Dict[str, Any]]) -> bool:
+    """
+    Trains a personalized Multi-Feature classifier on the user's categorized transactions.
+    """
+    if len(transactions_data) < 8:
+        return False
+        
+    # Filter valid training rows (must be categorized and not "Other" or "All")
+    valid_txs = [
+        tx for tx in transactions_data 
+        if tx.get('category') and tx['category'] not in ("Other", "All")
+    ]
+    
+    if len(valid_txs) < 8:
+        return False
+        
+    labels = [tx['category'] for tx in valid_txs]
+    if len(set(labels)) < 2:
         return False
 
     try:
+        df = build_features_df(valid_txs)
+        
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('text', TfidfVectorizer(ngram_range=(1, 2), min_df=1), 'text'),
+                ('num', StandardScaler(), ['amount', 'day_of_month']),
+                ('cat', OneHotEncoder(handle_unknown='ignore'), ['day_of_week'])
+            ]
+        )
+        
         pipeline = Pipeline([
-            ('tfidf', TfidfVectorizer(ngram_range=(1, 2), min_df=1)),
-            ('clf', LogisticRegression(C=1.0, max_iter=1000))
+            ('preprocessor', preprocessor),
+            ('clf', LogisticRegression(C=1.0, max_iter=1000, class_weight='balanced'))
         ])
-        pipeline.fit(texts, labels)
+        
+        pipeline.fit(df, labels)
 
         # Save the model
         model_path = get_user_model_path(user_id)
@@ -72,20 +151,32 @@ async def retrain_user_model_async(db: AsyncSession, user_id: str) -> bool:
     )
     transactions = result.scalars().all()
     tx_data = [
-        {"merchant": t.merchant, "description": t.source, "category": t.category}
+        {
+            "merchant": t.merchant,
+            "description": t.source,
+            "category": t.category,
+            "amount": t.amount,
+            "date": t.date
+        }
         for t in transactions
     ]
     return train_user_model(user_id, tx_data)
 
 
-def categorize_transaction(merchant: str, description: str, user_id: Optional[str] = None) -> str:
+def categorize_transaction(
+    merchant: str, 
+    description: str, 
+    amount: float = 0.0, 
+    date: str = "", 
+    user_id: Optional[str] = None
+) -> str:
     """
     Categorization pipeline:
     Tier 1: Personalized machine learning classifier (if trained & confidence is high).
     Tier 2: Fast baseline classification using keyword matching & rules.
     Tier 3: Fallback to OpenAI LLM categorization if key is configured.
     """
-    text_to_match = f"{merchant} {description}".lower()
+    text_to_match = clean_merchant_string(merchant, description)
 
     # Tier 1: Machine Learning Classifier (User Specific)
     if user_id:
@@ -95,15 +186,32 @@ def categorize_transaction(merchant: str, description: str, user_id: Optional[st
                 with open(model_path, "rb") as f:
                     pipeline = pickle.load(f)
                 
-                probs = pipeline.predict_proba([text_to_match.strip()])[0]
+                # Build single-row DataFrame matching the columns used in training
+                try:
+                    dt = datetime.strptime(date.split("T")[0], "%Y-%m-%d")
+                    day_of_month = dt.day
+                    day_of_week = dt.weekday()
+                except Exception:
+                    day_of_month = 15
+                    day_of_week = 3
+                
+                single_df = pd.DataFrame([{
+                    "text": text_to_match,
+                    "amount": abs(float(amount)),
+                    "day_of_month": day_of_month,
+                    "day_of_week": day_of_week
+                }])
+                
+                probs = pipeline.predict_proba(single_df)[0]
                 max_idx = probs.argmax()
                 confidence = probs[max_idx]
                 
                 # Confidence threshold of 70%
                 if confidence >= 0.70:
                     return pipeline.classes_[max_idx]
-            except Exception:
-                pass  # Fall back to keywords on model loading/prediction error
+            except Exception as e:
+                print(f"Prediction model error: {str(e)}")
+                pass  # Fall back to keywords
 
     # Tier 2: Keyword matches
     matched_category = None

@@ -65,6 +65,8 @@ async def upload_transactions(
         category = categorize_transaction(
             raw["merchant"],
             raw.get("description", ""),
+            amount=raw["amount"],
+            date=raw["date"],
             user_id=current_user.id
         )
         
