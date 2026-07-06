@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 
 const LINKS = [
@@ -15,6 +16,15 @@ const LINKS = [
 
 export default function NavBar({ userName = "Sourav Kumar" }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("ledgerline_token");
+    }
+    router.push("/");
+  };
+
   const initials = userName
     .split(" ")
     .map((p) => p[0])
@@ -59,6 +69,15 @@ export default function NavBar({ userName = "Sourav Kumar" }) {
           >
             {initials}
           </div>
+          <button
+            onClick={handleLogout}
+            title="Log Out"
+            className="rounded-card border border-hairline p-1.5 text-muted hover:text-coral
+                       hover:bg-coral-tint dark:border-hairline-dark dark:text-muted-dark
+                       dark:hover:text-coral-dark dark:hover:bg-coral-tint-dark transition-colors duration-subtle"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </div>
 
