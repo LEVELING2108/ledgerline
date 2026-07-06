@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Download, Trash2, Plus } from "lucide-react";
 import NavBar from "../../components/NavBar";
+import { getTransactions } from "../../lib/api";
 import { categories as initialCategories } from "../../lib/mockData";
 
 function SectionCard({ title, children }) {
@@ -24,6 +25,45 @@ export default function SettingsPage() {
   const [cats, setCats] = useState(initialCategories);
   const [newCat, setNewCat] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleExport = async () => {
+    try {
+      const transactions = await getTransactions();
+      if (!transactions || transactions.length === 0) {
+        alert("No transactions found to export. Please import a statement first!");
+        return;
+      }
+      
+      const headers = ["date", "merchant", "amount", "category", "anomaly", "source"];
+      const csvRows = [headers.join(",")];
+      
+      for (const t of transactions) {
+        const values = headers.map(header => {
+          const val = t[header];
+          if (typeof val === "string") {
+            return `"${val.replace(/"/g, '""')}"`;
+          }
+          return val;
+        });
+        csvRows.push(values.join(","));
+      }
+      
+      const csvContent = csvRows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "ledgerline_transactions_export.csv");
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error("Failed to export transactions:", e);
+      alert("Failed to export data: " + e.message);
+    }
+  };
 
   const renameCategory = (index, value) => {
     setCats((prev) => prev.map((c, i) => (i === index ? value : c)));
@@ -105,9 +145,12 @@ export default function SettingsPage() {
         </SectionCard>
 
         <SectionCard title="Your data">
-          <button className="flex items-center gap-2 rounded-card border border-hairline px-4 py-2
-                             text-body text-ink hover:bg-surface-muted dark:border-hairline-dark
-                             dark:text-ink-dark dark:hover:bg-surface-muted-dark">
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 rounded-card border border-hairline px-4 py-2
+                       text-body text-ink hover:bg-surface-muted dark:border-hairline-dark
+                       dark:text-ink-dark dark:hover:bg-surface-muted-dark transition-all duration-subtle"
+          >
             <Download size={16} /> Export all data (CSV)
           </button>
         </SectionCard>

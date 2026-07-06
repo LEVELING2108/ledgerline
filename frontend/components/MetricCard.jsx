@@ -49,7 +49,9 @@ export default function MetricCard({ label, value, deltaLabel, tone = "neutral",
 
   return (
     <div className="rounded-card border border-hairline bg-surface-muted p-4
-                    dark:border-hairline-dark dark:bg-surface-muted-dark">
+                    dark:border-hairline-dark dark:bg-surface-muted-dark
+                    hover:scale-[1.02] hover:shadow-sm hover:border-teal/30 dark:hover:border-teal-dark/30
+                    transition-all duration-300 ease-out cursor-default">
       <p className="text-caption text-muted dark:text-muted-dark">{label}</p>
       <div className="mt-1 flex items-end justify-between gap-3">
         <p className="text-metric text-ink dark:text-ink-dark">{value}</p>

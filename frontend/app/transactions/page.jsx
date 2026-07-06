@@ -12,6 +12,7 @@ export default function TransactionsPage() {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [minAmount, setMinAmount] = useState("");
+  const [toast, setToast] = useState({ show: false, message: "" });
 
   useEffect(() => {
     async function loadTransactions() {
@@ -48,6 +49,8 @@ export default function TransactionsPage() {
 
   const updateCategory = async (id, nextCategory) => {
     setRows((prev) => prev.map((t) => (t.id === id ? { ...t, category: nextCategory } : t)));
+    setToast({ show: true, message: `Feedback loop active: Retraining AI model on category '${nextCategory}'...` });
+    setTimeout(() => setToast({ show: false, message: "" }), 3000);
     try {
       await updateTransactionCategory(id, nextCategory);
     } catch (e) {
@@ -120,6 +123,17 @@ export default function TransactionsPage() {
           )}
         </div>
       </main>
+
+      {/* Active Learning Feedback Toast */}
+      {toast.show && (
+        <div className="fixed bottom-20 right-4 z-50 flex items-center gap-2 rounded-card border
+                        border-teal/20 bg-teal-tint px-4 py-3 text-body text-teal shadow-lg
+                        dark:border-teal-dark/20 dark:bg-teal-tint-dark dark:text-teal-dark
+                        transition-all duration-subtle animate-pulse">
+          <span className="h-2.5 w-2.5 rounded-full bg-teal dark:bg-teal-dark" />
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }
