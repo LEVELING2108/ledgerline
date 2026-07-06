@@ -52,6 +52,8 @@ def run_tests():
             "2026-06-29,Landlord Rent,-18000.00,Monthly rent payment\n"
             "2026-06-27,Airtel,-899.00,Postpaid broadband bill\n"
             "2026-07-03,Luxury Store,-45000.00,Huge purchase\n"
+            "2026-07-04,Local Tea Vendor,-45.00,Chai UPI payment\n"
+            "2026-07-04,Auto Rickshaw,-80.00,Fare payment\n"
         )
         
         files = {"file": ("statement.csv", csv_content, "text/csv")}

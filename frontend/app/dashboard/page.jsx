@@ -106,7 +106,13 @@ export default function DashboardPage() {
 
   const chartData = summary.category_breakdown.map((c) => ({
     ...c,
-    colorKey: { Rent: "purple", Groceries: "teal", Dining: "coral", Utilities: "purple" }[c.category] || "muted",
+    colorKey: {
+      Rent: "purple",
+      Groceries: "teal",
+      Dining: "coral",
+      Utilities: "purple",
+      "Chai & UPI Micro-Spends": "coral"
+    }[c.category] || "muted",
   }));
 
   const rupee = (n) => `${n < 0 ? "-" : ""}₹${Math.abs(n).toLocaleString("en-IN")}`;
