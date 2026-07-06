@@ -78,7 +78,7 @@ export default function TrendsPage() {
   return (
     <div className="min-h-screen bg-cream dark:bg-cream-dark">
       <NavBar />
-      <main className="mx-auto max-w-5xl space-y-5 px-4 py-6 md:px-6">
+      <main className="mx-auto max-w-5xl space-y-5 px-4 pt-6 pb-24 md:py-6 md:px-6">
         <p className="text-page-title text-ink dark:text-ink-dark">Trends &amp; forecast</p>
 
         <p className="text-body text-ink dark:text-ink-dark">
