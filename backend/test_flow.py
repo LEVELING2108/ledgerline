@@ -92,7 +92,8 @@ def run_tests():
         print("\n6. Querying AI Agent...")
         agent_questions = [
             "how much did I spend on groceries?",
-            "how much was my rent?"
+            "change swiggy to groceries",
+            "how much did I spend on groceries?"
         ]
         
         for q in agent_questions:
@@ -103,7 +104,7 @@ def run_tests():
                 continue
             
             res = ask_resp.json()
-            print(f" Agent Answer: {res['answer']}")
+            print(f" Agent Answer: {res['answer'].replace('₹', 'Rs.')}")
             print(f" Generated SQL: {res['trace']}")
 
     print("\n=== END-TO-END FLOW VALIDATION COMPLETE ===")
