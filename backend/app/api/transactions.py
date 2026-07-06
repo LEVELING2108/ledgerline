@@ -114,6 +114,10 @@ async def update_transaction_category(
         
     if tx_in.category is not None:
         transaction.category = tx_in.category
+    if tx_in.anomaly is not None:
+        transaction.anomaly = tx_in.anomaly
+    if tx_in.split_ratio is not None:
+        transaction.split_ratio = tx_in.split_ratio
         
     db.add(transaction)
     await db.commit()

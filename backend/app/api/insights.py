@@ -24,8 +24,8 @@ async def get_summary_metrics(
     )
     user_txs = tx_result.scalars().all()
     
-    total_spend = sum(t.amount for t in user_txs if t.amount < 0 and t.category != "Investment")
-    total_investment = sum(abs(t.amount) for t in user_txs if t.category == "Investment")
+    total_spend = sum((t.amount / t.split_ratio) for t in user_txs if t.amount < 0 and t.category != "Investment")
+    total_investment = sum(abs(t.amount / t.split_ratio) for t in user_txs if t.category == "Investment")
     
     # Category breakdown
     categories_breakdown = {}
@@ -35,7 +35,7 @@ async def get_summary_metrics(
                 cat_name = "Chai & UPI Micro-Spends"
             else:
                 cat_name = t.category
-            categories_breakdown[cat_name] = categories_breakdown.get(cat_name, 0.0) + abs(t.amount)
+            categories_breakdown[cat_name] = categories_breakdown.get(cat_name, 0.0) + abs(t.amount / t.split_ratio)
             
     breakdown_list = [
         {"category": k, "amount": v} for k, v in categories_breakdown.items()
