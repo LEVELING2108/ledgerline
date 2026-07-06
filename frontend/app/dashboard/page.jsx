@@ -126,19 +126,13 @@ export default function DashboardPage() {
           <p className="text-body text-muted dark:text-muted-dark">Here's where things stand.</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <MetricCard
             label="This month's spend"
             value={rupee(summary.this_month_spend)}
             deltaLabel={summary.delta_label}
             tone={summary.tone}
             trend={[32800, 34200, 31900, 36400, Math.abs(summary.this_month_spend)]}
-          />
-          <MetricCard
-            label="Investments &amp; SIPs"
-            value={rupee(summary.total_investment)}
-            deltaLabel="towards wealth assets"
-            tone="positive"
           />
           <MetricCard
             label="Next month's forecast"
