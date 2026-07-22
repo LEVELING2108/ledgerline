@@ -88,10 +88,13 @@ def run_tests():
         for alert in alerts:
             print(f" [ALERT] {alert['title']}: {alert['detail'].replace('₹', 'Rs.')}")
 
-        # 6. Query conversational agent (text-to-SQL)
-        print("\n6. Querying AI Agent...")
+        # 6. Query conversational agent (Multi-tool ReAct framework)
+        print("\n6. Testing Agentic AI Multi-Tool ReAct Framework...")
         agent_questions = [
             "how much did I spend on groceries?",
+            "Can I afford a 24000 phone on 3 months EMI?",
+            "What active subscriptions or recurring payments do I have?",
+            "Show me my unresolved spending anomalies",
             "change swiggy to groceries",
             "how much did I spend on groceries?"
         ]
@@ -104,8 +107,8 @@ def run_tests():
                 continue
             
             res = ask_resp.json()
-            print(f" Agent Answer: {res['answer'].replace('₹', 'Rs.')}")
-            print(f" Generated SQL: {res['trace']}")
+            print(f" Agent Answer:\n{res['answer'].replace('₹', 'Rs.')}")
+            print(f" Tool Trace: {res['trace']}")
 
     print("\n=== END-TO-END FLOW VALIDATION COMPLETE ===")
 
