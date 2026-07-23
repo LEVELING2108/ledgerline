@@ -39,9 +39,10 @@ async def generate_forecast_for_user(db: AsyncSession, user_id: str) -> List[For
         
     # Build historical daily/weekly timeline for Prophet
     df = pd.DataFrame([{
-        "ds": pd.to_datetime(t.date),
+        "ds": pd.to_datetime(t.date, errors="coerce"),
         "y": abs(t.amount) if t.amount < 0 else 0
     } for t in transactions])
+    df = df.dropna(subset=["ds"])
     
     # Resample daily
     df_daily = df.groupby("ds").sum().reset_index()
