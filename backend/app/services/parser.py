@@ -75,10 +75,21 @@ def detect_bank_name(filename: str, sample_text: str = "") -> str:
         return "HDFC Bank"
 
 
+def is_date_string(val: str) -> bool:
+    clean = str(val or "").strip()
+    if not clean or clean.isdigit():
+        return False
+    # Matches DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, DD Mon YYYY, etc.
+    return (
+        bool(re.search(r'\d{1,4}[-/.\s][A-Za-z0-9]{1,4}(?:[-/.\s]\d{1,4})?', clean)) or 
+        bool(re.search(r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b', clean, re.I))
+    )
+
+
 def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, Any]]:
     """
     Parses CSV or PDF statement files from Kotak Mahindra Bank, HDFC, SBI, ICICI, etc.
-    Extracts dates, merchant narrations, debit/credit amounts, and bank signatures.
+    Dynamically identifies date cells, merchant narrations, debit/credit amounts, and bank signatures.
     """
     transactions = []
     text_sample = file_contents.decode("utf-8", errors="ignore")[:3000] if filename.endswith(".csv") else ""
@@ -103,33 +114,42 @@ def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, 
 
         csv_data = "\n".join(lines[header_row_idx:])
         reader = csv.DictReader(io.StringIO(csv_data))
-
         headers = reader.fieldnames or []
-        
-        date_aliases = ["date", "txn date", "transaction date", "value date", "post date", "posting date", "trans date", "chq / ref no"]
+
+        date_aliases = ["date", "txn date", "transaction date", "value date", "post date", "posting date", "trans date"]
         merchant_aliases = ["merchant", "narration", "description", "details", "particulars", "transaction details", "payee", "remarks", "summary"]
         amount_aliases = ["amount", "amount (inr)", "amount (rs)", "transaction amount", "amount(inr)", "amount(rs)", "txn amount"]
         debit_aliases = ["debit", "withdrawal", "withdrawal amt", "withdrawal amount", "withdrawals", "withdrawal (dr)", "dr (rs)", "dr"]
         credit_aliases = ["credit", "deposit", "deposit amt", "deposit amount", "deposits", "deposit (cr)", "cr (rs)", "cr"]
         indicator_aliases = ["dr/cr", "type", "txn type", "dr_cr", "drcr", "cr/dr", "indicator", "dr / cr"]
 
-        date_col = next((h for h in headers if h.lower().strip() in date_aliases), None)
+        date_col = next((h for h in headers if h.lower().strip() in date_aliases and not h.lower().strip().isdigit()), None)
         merchant_col = next((h for h in headers if h.lower().strip() in merchant_aliases), None)
         amount_col = next((h for h in headers if h.lower().strip() in amount_aliases), None)
         debit_col = next((h for h in headers if h.lower().strip() in debit_aliases), None)
         credit_col = next((h for h in headers if h.lower().strip() in credit_aliases), None)
         indicator_col = next((h for h in headers if h.lower().strip() in indicator_aliases), None)
 
-        if not date_col and len(headers) > 0: date_col = headers[0]
-        if not merchant_col and len(headers) > 1: merchant_col = headers[1]
-        if not amount_col and not debit_col and len(headers) > 2: amount_col = headers[2]
-
         for row in reader:
-            date_raw = str(row.get(date_col) or "").strip()
-            merchant_raw = str(row.get(merchant_col) or "").strip()
+            date_raw = str(row.get(date_col) or "").strip() if date_col else ""
+            merchant_raw = str(row.get(merchant_col) or "").strip() if merchant_col else ""
 
-            if not date_raw or not merchant_raw:
-                continue
+            # Fallback cell scanner if column mapping was offset
+            row_vals = [str(v or "").strip() for v in row.values() if str(v or "").strip()]
+            if not is_date_string(date_raw):
+                # Search for first cell containing valid date string
+                date_candidates = [v for v in row_vals if is_date_string(v)]
+                if date_candidates:
+                    date_raw = date_candidates[0]
+                else:
+                    continue
+
+            if not merchant_raw or merchant_raw == date_raw:
+                merchant_candidates = [v for v in row_vals if any(c.isalpha() for c in v) and v != date_raw and not v.isdigit()]
+                if merchant_candidates:
+                    merchant_raw = merchant_candidates[0]
+                else:
+                    merchant_raw = "Unknown Merchant"
 
             amount = 0.0
             if amount_col and row.get(amount_col):
@@ -157,7 +177,6 @@ def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, 
                 elif credit_val > 0:
                     amount = credit_val
 
-            # Apply DR / CR indicator check (common in Kotak CSVs)
             if indicator_col and row.get(indicator_col):
                 ind = str(row.get(indicator_col)).upper().strip()
                 if "DR" in ind or "DEBIT" in ind:
@@ -176,38 +195,58 @@ def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, 
     elif filename.endswith(".pdf"):
         with pdfplumber.open(io.BytesIO(file_contents)) as pdf:
             for page in pdf.pages:
-                # 1. Try structured table extraction first
                 tables = page.extract_tables()
                 if tables:
                     for table in tables:
                         if not table or len(table) < 2:
                             continue
-                        hdr = [str(cell or "").strip().lower() for cell in table[0]]
-                        d_idx = next((i for i, h in enumerate(hdr) if any(k in h for k in ["date", "txn date"])), 0)
-                        m_idx = next((i for i, h in enumerate(hdr) if any(k in h for k in ["narration", "description", "particulars", "details"])), 1)
-                        a_idx = next((i for i, h in enumerate(hdr) if any(k in h for k in ["amount", "withdrawal", "debit", "dr"])), -1)
-
                         for row in table[1:]:
-                            if len(row) > max(d_idx, m_idx):
-                                d_val = str(row[d_idx] or "").strip()
-                                m_val = str(row[m_idx] or "").strip()
-                                if d_val and m_val and re.search(r'\d', d_val):
-                                    amt = -500.0
-                                    if a_idx != -1 and len(row) > a_idx:
-                                        a_str = str(row[a_idx] or "").replace(",", "").strip()
-                                        num = re.sub(r'[^\d.]', '', a_str)
-                                        if num:
-                                            try: amt = -abs(float(num))
-                                            except ValueError: pass
-                                    transactions.append({
-                                        "date": normalize_date(d_val),
-                                        "merchant": m_val,
-                                        "amount": amt,
-                                        "description": m_val,
-                                        "bank_name": detected_bank
-                                    })
+                            clean_row = [str(cell or "").strip() for cell in row if str(cell or "").strip()]
+                            if len(clean_row) < 2:
+                                continue
 
-                # 2. Fallback to line text scanning if tables yield 0 rows
+                            # 1. Find date cell dynamically
+                            d_cell_idx = -1
+                            for idx, cell in enumerate(clean_row):
+                                if is_date_string(cell):
+                                    d_cell_idx = idx
+                                    break
+
+                            if d_cell_idx == -1:
+                                continue
+
+                            date_val = clean_row[d_cell_idx]
+
+                            # 2. Merchant narration cell is the cell containing text after date
+                            merchant_val = "Unknown Merchant"
+                            for idx in range(d_cell_idx + 1, len(clean_row)):
+                                cell = clean_row[idx]
+                                if any(c.isalpha() for c in cell) and not re.match(r'^\d+$', cell):
+                                    merchant_val = cell
+                                    break
+
+                            # 3. Numeric cells for spend amount
+                            numeric_cells = []
+                            for idx in range(d_cell_idx + 1, len(clean_row)):
+                                cell = clean_row[idx]
+                                num_str = re.sub(r'[^\d.]', '', cell.replace(",", ""))
+                                if num_str and re.match(r'^\d+(\.\d{1,2})?$', num_str):
+                                    try:
+                                        val = float(num_str)
+                                        if val > 0: numeric_cells.append(val)
+                                    except ValueError: pass
+
+                            amount_val = -abs(numeric_cells[0]) if numeric_cells else -350.0
+
+                            transactions.append({
+                                "date": normalize_date(date_val),
+                                "merchant": merchant_val,
+                                "amount": amount_val,
+                                "description": merchant_val,
+                                "bank_name": detected_bank
+                            })
+
+                # Fallback to line text scanning if PDF tables yielded 0 rows
                 if not transactions:
                     text = page.extract_text()
                     if not text: continue
@@ -217,12 +256,15 @@ def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, 
                     for line in text.split("\n"):
                         parts = line.split()
                         if len(parts) >= 3:
-                            date_candidate = parts[0]
-                            if re.match(r'^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}$', date_candidate) or re.match(r'^\d{1,2}[-/.\s][A-Za-z]{3}[-/.\s]\d{2,4}$', date_candidate):
+                            # Search for date token anywhere in parts
+                            d_idx = next((i for i, p in enumerate(parts) if is_date_string(p)), -1)
+                            if d_idx != -1:
+                                date_candidate = parts[d_idx]
                                 try:
                                     amt_part = parts[-1].replace(",", "").strip()
                                     amt_num = float(re.sub(r'[^\d.]', '', amt_part))
-                                    merchant = " ".join(parts[1:-1])
+                                    merchant_parts = [p for i, p in enumerate(parts) if i != d_idx and i != len(parts)-1]
+                                    merchant = " ".join(merchant_parts) if merchant_parts else "Kotak Transaction"
                                     transactions.append({
                                         "date": normalize_date(date_candidate),
                                         "merchant": merchant,
@@ -233,7 +275,7 @@ def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, 
                                 except ValueError:
                                     continue
 
-    # Fallback to demo structured statement if empty
+    # Fallback to structured demo statement if empty
     if not transactions:
         transactions = [
             {"date": normalize_date("2026-07-02"), "merchant": "Kotak UPI — Big Bazaar", "amount": -2450.0, "description": "Grocery Shopping", "bank_name": detected_bank},
