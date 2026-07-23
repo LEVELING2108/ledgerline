@@ -29,6 +29,7 @@ export default function TransactionRow({
   merchant,
   category,
   categoryTone = "muted",
+  bankName = "HDFC Bank",
   amount,
   anomaly = false,
   categoryOptions = [],
@@ -43,7 +44,12 @@ export default function TransactionRow({
         {formatDate(date)}
       </span>
 
-      <span className="flex-1 truncate text-ink dark:text-ink-dark">{merchant}</span>
+      <div className="flex flex-1 items-center gap-2 min-w-0">
+        <span className="truncate text-ink dark:text-ink-dark">{merchant}</span>
+        <span className="hidden sm:inline-flex items-center gap-1 rounded-pill bg-hairline/60 dark:bg-hairline-dark/60 px-2 py-0.5 text-caption text-muted dark:text-muted-dark shrink-0">
+          🏦 {bankName}
+        </span>
+      </div>
 
       <select
         value={category}

@@ -21,6 +21,8 @@ async def read_transactions(
     skip: int = 0,
     limit: int = 100,
     category: Optional[str] = None,
+    bank_name: Optional[str] = None,
+    month: Optional[str] = None,
     min_amount: Optional[float] = None,
     query: Optional[str] = None,
 ) -> Any:
@@ -28,11 +30,15 @@ async def read_transactions(
     
     if category and category != "All":
         stmt = stmt.where(Transaction.category == category)
+    if bank_name and bank_name != "All Banks":
+        stmt = stmt.where(Transaction.bank_name.ilike(f"%{bank_name}%"))
+    if month and month != "All Months":
+        stmt = stmt.where(Transaction.date.like(f"{month}%"))
     if min_amount:
         # Spending is negative, so minimum absolute amount threshold
         stmt = stmt.where(func.abs(Transaction.amount) >= min_amount)
     if query:
-        stmt = stmt.where(Transaction.merchant.ilike(f"%{query}%"))
+        stmt = stmt.where(Transaction.merchant.ilike(f"%{query}%") | Transaction.category.ilike(f"%{query}%") | Transaction.bank_name.ilike(f"%{query}%"))
         
     stmt = stmt.order_by(desc(Transaction.date)).offset(skip).limit(limit)
     result = await db.execute(stmt)
@@ -76,6 +82,7 @@ async def upload_transactions(
             amount=raw["amount"],
             merchant=raw["merchant"],
             category=category,
+            bank_name=raw.get("bank_name", "HDFC Bank"),
             anomaly=False,
             source="upload",
         )

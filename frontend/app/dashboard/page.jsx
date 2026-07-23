@@ -7,6 +7,7 @@ import MetricCard from "../../components/MetricCard";
 import AlertBanner from "../../components/AlertBanner";
 import CategoryChart from "../../components/CategoryChart";
 import ChatPanel from "../../components/ChatPanel";
+import { UploadCloud } from "lucide-react";
 import { getSummary, getForecast, getAlerts, askAgent } from "../../lib/api";
 import { categoryBreakdown, chatHistory, alerts } from "../../lib/mockData";
 
@@ -121,9 +122,18 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-cream dark:bg-cream-dark">
       <NavBar />
       <main className="mx-auto max-w-5xl space-y-5 px-4 pt-6 pb-24 md:py-6 md:px-6">
-        <div>
-          <p className="text-page-title text-ink dark:text-ink-dark">Good evening, Sourav</p>
-          <p className="text-body text-muted dark:text-muted-dark">Here's where things stand.</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-page-title text-ink dark:text-ink-dark">Good evening, Sourav</p>
+            <p className="text-body text-muted dark:text-muted-dark">Here's where things stand.</p>
+          </div>
+          <button
+            onClick={() => router.push("/onboarding")}
+            className="inline-flex items-center gap-2 rounded-card bg-teal px-4 py-2 text-body font-medium text-white shadow-sm hover:bg-teal/90 dark:bg-teal-dark dark:hover:bg-teal-dark/90 transition-all duration-subtle"
+          >
+            <UploadCloud size={18} />
+            <span>Upload Statement</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

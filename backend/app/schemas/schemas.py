@@ -45,6 +45,7 @@ class TransactionBase(BaseModel):
     category: str
     anomaly: bool = False
     source: str = "upload"
+    bank_name: str = "HDFC Bank"
     split_ratio: int = 1
 
 
@@ -55,6 +56,7 @@ class TransactionCreate(TransactionBase):
 class TransactionUpdate(BaseModel):
     category: Optional[str] = None
     anomaly: Optional[bool] = None
+    bank_name: Optional[str] = None
     split_ratio: Optional[int] = None
 
 

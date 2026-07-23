@@ -28,8 +28,9 @@ async def on_startup():
     # Automatically bootstrap and create tables on app start
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Dynamically append split_ratio column if it does not exist
+        # Dynamically append split_ratio and bank_name columns if they do not exist
         await conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS split_ratio INTEGER DEFAULT 1"))
+        await conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_name VARCHAR DEFAULT 'HDFC Bank'"))
 
 
 # Include APIs
