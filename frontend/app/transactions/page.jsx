@@ -10,7 +10,7 @@ import { transactions as initialTransactions, categories, banks, categoryColorKe
 
 export default function TransactionsPage() {
   const router = useRouter();
-  const [rows, setRows] = useState(initialTransactions);
+  const [rows, setRows] = useState([]);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [bankFilter, setBankFilter] = useState("All Banks");

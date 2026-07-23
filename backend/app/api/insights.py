@@ -61,27 +61,16 @@ async def get_summary_metrics(
     )
     open_alerts_count = len(alert_result.scalars().all())
     
-    # Fallback to defaults if user has no transactions yet
+    # Fallback to zero values if user has no transactions yet
     if not user_txs:
         return {
-            "this_month_spend": -35200,
-            "delta_label": "vs -36,400 last month",
-            "tone": "positive",
+            "this_month_spend": 0.0,
+            "delta_label": "No statement uploaded yet",
+            "tone": "neutral",
             "open_anomalies_count": 0,
-            "category_breakdown": [
-                {"category": "Rent", "amount": 18000},
-                {"category": "Groceries", "amount": 7200},
-                {"category": "Dining", "amount": 4100},
-                {"category": "Transport", "amount": 2600},
-                {"category": "Utilities", "amount": 1800},
-                {"category": "Entertainment", "amount": 1500},
-            ],
-            "bank_breakdown": [
-                {"bank_name": "HDFC Bank", "amount": 28449},
-                {"bank_name": "SBI", "amount": 7780},
-                {"bank_name": "ICICI Bank", "amount": 1050},
-            ],
-            "total_investment": 5000.0
+            "category_breakdown": [],
+            "bank_breakdown": [],
+            "total_investment": 0.0
         }
         
     abs_spend = abs(total_spend)
@@ -111,20 +100,12 @@ async def get_forecast(
         forecasts = await generate_forecast_for_user(db, current_user.id)
         
     if not forecasts:
-        # Mock default forecast
         return {
-            "month": "2026-07",
-            "forecast_spend": 37100,
-            "delta_label": "up 5.4% from this month",
-            "tone": "negative",
-            "monthly_trend": [
-                {"month": "Feb", "actual": 32800},
-                {"month": "Mar", "actual": 34200},
-                {"month": "Apr", "actual": 31900},
-                {"month": "May", "actual": 36400},
-                {"month": "Jun", "actual": 35200},
-                {"month": "Jul", "actual": None, "forecast": 37100},
-            ]
+            "month": datetime.now().strftime("%Y-%m"),
+            "forecast_spend": 0.0,
+            "delta_label": "No forecast data available yet",
+            "tone": "neutral",
+            "monthly_trend": []
         }
         
     return {

@@ -16,20 +16,20 @@ const openAnomaliesDefault = alerts.filter((a) => !a.resolved);
 export default function DashboardPage() {
   const [messages, setMessages] = useState(chatHistory);
   const [summary, setSummary] = useState({
-    this_month_spend: -35200,
-    delta_label: "vs ₹36,400 last month",
-    tone: "positive",
-    open_anomalies_count: openAnomaliesDefault.length,
-    category_breakdown: categoryBreakdown,
-    total_investment: 5000
+    this_month_spend: 0,
+    delta_label: "No statement uploaded",
+    tone: "neutral",
+    open_anomalies_count: 0,
+    category_breakdown: [],
+    total_investment: 0
   });
   const [forecast, setForecast] = useState({
-    forecast_spend: 37100,
-    delta_label: "up 5.4% from this month",
-    tone: "negative",
-    trend: [34200, 31900, 36400, 35200, 37100]
+    forecast_spend: 0,
+    delta_label: "No forecast data",
+    tone: "neutral",
+    trend: []
   });
-  const [openAnomaly, setOpenAnomaly] = useState(openAnomaliesDefault[0] || null);
+  const [openAnomaly, setOpenAnomaly] = useState(null);
   
   const router = useRouter();
 
@@ -42,11 +42,11 @@ export default function DashboardPage() {
           delta_label: sumData.delta_label,
           tone: sumData.tone,
           open_anomalies_count: sumData.open_anomalies_count,
-          category_breakdown: sumData.category_breakdown.length > 0 ? sumData.category_breakdown : categoryBreakdown,
+          category_breakdown: sumData.category_breakdown || [],
           total_investment: sumData.total_investment || 0
         });
       } catch (e) {
-        console.warn("Failed to fetch dashboard summary, using mock defaults", e);
+        console.warn("Failed to fetch dashboard summary", e);
       }
 
       try {
