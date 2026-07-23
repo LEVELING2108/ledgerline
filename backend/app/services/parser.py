@@ -1,7 +1,38 @@
 import csv
 import io
+import re
+from datetime import datetime
 from typing import Any, Dict, List
 import pdfplumber
+
+
+def normalize_date(date_str: str) -> str:
+    """
+    Normalizes messy date strings into standard YYYY-MM-DD format.
+    Handles: YYYY-MM-DD, DD-MM-YYYY, DD/MM/YYYY, DD Mon YYYY, YYYY/MM/DD
+    """
+    if not date_str:
+        return datetime.now().strftime("%Y-%m-%d")
+    
+    clean_str = date_str.strip()
+    
+    # Try ISO YYYY-MM-DD first
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', clean_str):
+        return clean_str
+        
+    date_formats = [
+        "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%m/%d/%Y",
+        "%d %b %Y", "%d %B %Y", "%Y/%m/%d", "%d-%b-%Y", "%d-%b-%y"
+    ]
+    
+    for fmt in date_formats:
+        try:
+            dt = datetime.strptime(clean_str, fmt)
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+            
+    return clean_str
 
 
 def detect_bank_name(filename: str, sample_text: str = "") -> str:
@@ -32,6 +63,14 @@ def detect_bank_name(filename: str, sample_text: str = "") -> str:
         return "PNB"
     elif "baroda" in combined or "bob" in combined:
         return "Bank of Baroda"
+    elif "idfc" in combined:
+        return "IDFC First Bank"
+    elif "federal" in combined:
+        return "Federal Bank"
+    elif "canara" in combined:
+        return "Canara Bank"
+    elif "union" in combined:
+        return "Union Bank of India"
     else:
         return "HDFC Bank"
 
@@ -121,7 +160,7 @@ def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, 
                     amount = credit_val
                     
             transactions.append({
-                "date": date.strip(),
+                "date": normalize_date(date),
                 "merchant": merchant.strip(),
                 "amount": amount,
                 "description": row.get("description") or row.get("Description") or merchant.strip(),
@@ -152,7 +191,7 @@ def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, 
                                 amount = float(parts[-1].replace(",", "").strip())
                                 merchant = " ".join(parts[1:-1])
                                 transactions.append({
-                                    "date": date_str,
+                                    "date": normalize_date(date_str),
                                     "merchant": merchant,
                                     "amount": amount,
                                     "description": line,

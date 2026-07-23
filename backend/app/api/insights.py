@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,24 +25,35 @@ async def get_summary_metrics(
     )
     user_txs = tx_result.scalars().all()
     
-    total_spend = sum((t.amount / t.split_ratio) for t in user_txs if t.amount < 0 and t.category not in ("Investment", "Contra"))
-    total_investment = sum(abs(t.amount / t.split_ratio) for t in user_txs if t.category == "Investment")
+    # Calculate month-specific metrics
+    current_month_str = datetime.now().strftime("%Y-%m")
     
-    # Category breakdown
+    current_month_txs = [t for t in user_txs if t.date.startswith(current_month_str)]
+    target_txs = current_month_txs if current_month_txs else user_txs
+    
+    total_spend = sum((t.amount / t.split_ratio) for t in target_txs if t.amount < 0 and t.category not in ("Investment", "Contra"))
+    total_investment = sum(abs(t.amount / t.split_ratio) for t in target_txs if t.category == "Investment")
+    
+    # Category breakdown from target transactions
     categories_breakdown = {}
-    for t in user_txs:
+    bank_breakdown = {}
+    
+    for t in target_txs:
         if t.amount < 0 and t.category not in ("Investment", "Contra"):
-            if abs(t.amount) < 150.0 and t.category in ("Dining", "Transport", "Entertainment", "Shopping", "Other"):
-                cat_name = "Chai & UPI Micro-Spends"
-            else:
-                cat_name = t.category
+            cat_name = t.category
             categories_breakdown[cat_name] = categories_breakdown.get(cat_name, 0.0) + abs(t.amount / t.split_ratio)
+            b_name = getattr(t, "bank_name", "HDFC Bank") or "HDFC Bank"
+            bank_breakdown[b_name] = bank_breakdown.get(b_name, 0.0) + abs(t.amount / t.split_ratio)
             
     breakdown_list = [
-        {"category": k, "amount": v} for k, v in categories_breakdown.items()
+        {"category": k, "amount": round(v, 2)} for k, v in categories_breakdown.items()
     ]
-    # Sort by amount descending
     breakdown_list.sort(key=lambda x: x["amount"], reverse=True)
+    
+    bank_list = [
+        {"bank_name": k, "amount": round(v, 2)} for k, v in bank_breakdown.items()
+    ]
+    bank_list.sort(key=lambda x: x["amount"], reverse=True)
     
     # Open anomalies
     alert_result = await db.execute(
@@ -64,15 +76,22 @@ async def get_summary_metrics(
                 {"category": "Utilities", "amount": 1800},
                 {"category": "Entertainment", "amount": 1500},
             ],
+            "bank_breakdown": [
+                {"bank_name": "HDFC Bank", "amount": 28449},
+                {"bank_name": "SBI", "amount": 7780},
+                {"bank_name": "ICICI Bank", "amount": 1050},
+            ],
             "total_investment": 5000.0
         }
         
+    abs_spend = abs(total_spend)
     return {
         "this_month_spend": total_spend,
-        "delta_label": "computed from uploaded statement",
-        "tone": "neutral" if total_spend == 0 else ("positive" if total_spend > -40000 else "negative"),
+        "delta_label": f"₹{abs_spend:,.2f} calculated across {len(target_txs)} transactions",
+        "tone": "neutral" if total_spend == 0 else ("positive" if abs_spend < 40000 else "negative"),
         "open_anomalies_count": open_alerts_count,
         "category_breakdown": breakdown_list,
+        "bank_breakdown": bank_list,
         "total_investment": total_investment
     }
 

@@ -59,7 +59,9 @@ export async function register(email, name, password) {
 
 export async function getTransactions(filters = {}) {
   const params = new URLSearchParams();
-  if (filters.category) params.append("category", filters.category);
+  if (filters.category && filters.category !== "All") params.append("category", filters.category);
+  if (filters.bank_name && filters.bank_name !== "All Banks") params.append("bank_name", filters.bank_name);
+  if (filters.month && filters.month !== "All Months") params.append("month", filters.month);
   if (filters.min_amount) params.append("min_amount", filters.min_amount);
   if (filters.query) params.append("query", filters.query);
 
