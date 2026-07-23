@@ -43,10 +43,11 @@ async def tool_sql_analytics(db: AsyncSession, user_id: str, question: str, gene
     """
     schema_info = """
     Tables available:
-    1. transactions (id, user_id, date YYYY-MM-DD, amount float [negative for spend], merchant, category, anomaly bool, source, split_ratio)
+    1. transactions (id, user_id, date YYYY-MM-DD, amount float [negative for spend], merchant, category, bank_name, anomaly bool, source, split_ratio)
     2. alerts (id, user_id, transaction_id, title, detail, resolved bool, date)
     3. forecasts (id, user_id, month YYYY-MM, predicted_spend, predicted_balance)
     Categories: Groceries, Dining, Transport, Utilities, Rent, Entertainment, Investment, Contra, Other.
+    Banks: HDFC Bank, SBI, ICICI Bank, Axis Bank, Kotak Mahindra Bank, Paytm Payments Bank.
     """
     
     sql_query = generated_sql or ""

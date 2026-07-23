@@ -6,13 +6,14 @@ import { Search, UploadCloud } from "lucide-react";
 import NavBar from "../../components/NavBar";
 import TransactionRow from "../../components/TransactionRow";
 import { getTransactions, updateTransactionCategory } from "../../lib/api";
-import { transactions as initialTransactions, categories, categoryColorKey } from "../../lib/mockData";
+import { transactions as initialTransactions, categories, banks, categoryColorKey } from "../../lib/mockData";
 
 export default function TransactionsPage() {
   const router = useRouter();
   const [rows, setRows] = useState(initialTransactions);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [bankFilter, setBankFilter] = useState("All Banks");
   const [minAmount, setMinAmount] = useState("");
   const [toast, setToast] = useState({ show: false, message: "" });
 
@@ -21,6 +22,7 @@ export default function TransactionsPage() {
       try {
         const txs = await getTransactions({
           category: categoryFilter,
+          bank_name: bankFilter,
           min_amount: minAmount ? Number(minAmount) : null,
           query: query
         });
@@ -32,22 +34,21 @@ export default function TransactionsPage() {
       }
     }
     loadTransactions();
-  }, [query, categoryFilter, minAmount]);
+  }, [query, categoryFilter, bankFilter, minAmount]);
 
   // Client-side fallback filtered rows if rows matches initialTransactions
   const filtered = useMemo(() => {
-    // If backend returned rows, use them directly (since backend already filtered them)
-    // Otherwise fallback to client-side filtering of rows
     const isMock = rows === initialTransactions;
     if (!isMock) return rows;
     
     return rows.filter((t) => {
       const matchesQuery = t.merchant.toLowerCase().includes(query.toLowerCase());
       const matchesCategory = categoryFilter === "All" || t.category === categoryFilter;
+      const matchesBank = bankFilter === "All Banks" || t.bank_name === bankFilter;
       const matchesAmount = !minAmount || Math.abs(t.amount) >= Number(minAmount);
-      return matchesQuery && matchesCategory && matchesAmount;
+      return matchesQuery && matchesCategory && matchesBank && matchesAmount;
     });
-  }, [rows, query, categoryFilter, minAmount]);
+  }, [rows, query, categoryFilter, bankFilter, minAmount]);
 
   const updateCategory = async (id, nextCategory) => {
     setRows((prev) => prev.map((t) => (t.id === id ? { ...t, category: nextCategory } : t)));
@@ -100,6 +101,18 @@ export default function TransactionsPage() {
             ))}
           </select>
 
+          <select
+            value={bankFilter}
+            onChange={(e) => setBankFilter(e.target.value)}
+            className="rounded-card border border-hairline bg-surface px-3 py-2 text-body text-ink
+                      dark:border-hairline-dark dark:bg-surface-dark dark:text-ink-dark"
+          >
+            <option>All Banks</option>
+            {banks.map((b) => (
+              <option key={b}>{b}</option>
+            ))}
+          </select>
+
           <input
             type="number"
             value={minAmount}
@@ -125,6 +138,7 @@ export default function TransactionsPage() {
                 merchant={t.merchant}
                 category={t.category}
                 categoryTone={categoryColorKey(t.category)}
+                bankName={t.bank_name || "HDFC Bank"}
                 amount={t.amount}
                 anomaly={t.anomaly}
                 categoryOptions={categories}

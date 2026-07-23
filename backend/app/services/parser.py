@@ -4,12 +4,46 @@ from typing import Any, Dict, List
 import pdfplumber
 
 
+def detect_bank_name(filename: str, sample_text: str = "") -> str:
+    """
+    Auto-detects bank name from statement filename or text contents.
+    """
+    fn_lower = filename.lower()
+    txt_lower = sample_text.lower()
+    combined = f"{fn_lower} {txt_lower}"
+
+    if "hdfc" in combined:
+        return "HDFC Bank"
+    elif "sbi" in combined or "state bank" in combined:
+        return "SBI"
+    elif "icici" in combined:
+        return "ICICI Bank"
+    elif "axis" in combined:
+        return "Axis Bank"
+    elif "kotak" in combined:
+        return "Kotak Mahindra Bank"
+    elif "paytm" in combined:
+        return "Paytm Payments Bank"
+    elif "zerodha" in combined or "groww" in combined:
+        return "Zerodha Broking"
+    elif "indusind" in combined:
+        return "IndusInd Bank"
+    elif "pnb" in combined or "punjab" in combined:
+        return "PNB"
+    elif "baroda" in combined or "bob" in combined:
+        return "Bank of Baroda"
+    else:
+        return "HDFC Bank"
+
+
 def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, Any]]:
     """
     Parses a CSV or PDF statement file into a unified raw transaction shape:
-    [{'date': '2026-07-02', 'amount': -2450.0, 'merchant': 'Big Bazaar', 'description': '...'}]
+    [{'date': '2026-07-02', 'amount': -2450.0, 'merchant': 'Big Bazaar', 'description': '...', 'bank_name': 'HDFC Bank'}]
     """
     transactions = []
+    text_sample = file_contents.decode("utf-8", errors="ignore")[:2000] if filename.endswith(".csv") else ""
+    detected_bank = detect_bank_name(filename, text_sample)
     
     if filename.endswith(".csv"):
         # Parse CSV
@@ -90,7 +124,8 @@ def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, 
                 "date": date.strip(),
                 "merchant": merchant.strip(),
                 "amount": amount,
-                "description": row.get("description") or row.get("Description") or merchant.strip()
+                "description": row.get("description") or row.get("Description") or merchant.strip(),
+                "bank_name": detected_bank
             })
             
     elif filename.endswith(".pdf"):
@@ -100,6 +135,9 @@ def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, 
                 text = page.extract_text()
                 if not text:
                     continue
+                # Update detected_bank if pdf contains bank keywords
+                if detected_bank == "HDFC Bank":
+                    detected_bank = detect_bank_name(filename, text[:1000])
                     
                 # Simplistic row splitter for demo/mock bank statements
                 for line in text.split("\n"):
@@ -117,7 +155,8 @@ def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, 
                                     "date": date_str,
                                     "merchant": merchant,
                                     "amount": amount,
-                                    "description": line
+                                    "description": line,
+                                    "bank_name": detected_bank
                                 })
                             except ValueError:
                                 continue
@@ -126,12 +165,12 @@ def parse_statement_file(filename: str, file_contents: bytes) -> List[Dict[str, 
     if not transactions:
         # Fallback to general statement parsing test structure
         transactions = [
-            {"date": "2026-07-02", "merchant": "Big Bazaar", "amount": -2450.0, "description": "Grocery Shopping"},
-            {"date": "2026-07-01", "merchant": "Swiggy", "amount": -680.0, "description": "Dinner delivery"},
-            {"date": "2026-06-30", "merchant": "Ola Cabs", "amount": -320.0, "description": "Ride sharing"},
-            {"date": "2026-06-29", "merchant": "Landlord — Rent", "amount": -18000.0, "description": "Monthly rent"},
-            {"date": "2026-06-28", "merchant": "Unknown POS Terminal", "amount": -9200.0, "description": "POS Terminal purchase"},
-            {"date": "2026-06-27", "merchant": "Airtel", "amount": -899.0, "description": "Internet postpaid"},
+            {"date": "2026-07-02", "merchant": "Big Bazaar", "amount": -2450.0, "description": "Grocery Shopping", "bank_name": detected_bank},
+            {"date": "2026-07-01", "merchant": "Swiggy", "amount": -680.0, "description": "Dinner delivery", "bank_name": detected_bank},
+            {"date": "2026-06-30", "merchant": "Ola Cabs", "amount": -320.0, "description": "Ride sharing", "bank_name": detected_bank},
+            {"date": "2026-06-29", "merchant": "Landlord — Rent", "amount": -18000.0, "description": "Monthly rent", "bank_name": detected_bank},
+            {"date": "2026-06-28", "merchant": "Unknown POS Terminal", "amount": -9200.0, "description": "POS Terminal purchase", "bank_name": detected_bank},
+            {"date": "2026-06-27", "merchant": "Airtel", "amount": -899.0, "description": "Internet postpaid", "bank_name": detected_bank},
         ]
         
     return transactions

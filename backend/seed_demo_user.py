@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 from datetime import datetime, timedelta
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, text
 from app.core.database import SessionLocal, Base, engine
 from app.core.security import get_password_hash
 from app.models.models import User, Transaction, Alert, Forecast
@@ -10,6 +10,8 @@ async def seed_data():
     print("Seeding database with demo user and financial data...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS split_ratio INTEGER DEFAULT 1"))
+        await conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_name VARCHAR DEFAULT 'HDFC Bank'"))
 
     async with SessionLocal() as db:
         # Check if test user exists
@@ -40,27 +42,27 @@ async def seed_data():
         await db.execute(delete(Forecast).where(Forecast.user_id == user_id))
         await db.commit()
 
-        # Seed realistic transactions
+        # Seed realistic transactions with multi-bank tagging
         sample_txs = [
-            # Date, Merchant, Amount (negative for spend), Category, Anomaly, Source
-            ("2026-07-01", "Landlord Rent", -18000.00, "Rent", False, "upload"),
-            ("2026-07-02", "Big Bazaar", -3450.00, "Groceries", False, "upload"),
-            ("2026-07-03", "Swiggy", -680.00, "Dining", False, "upload"),
-            ("2026-07-04", "Airtel Broadband", -899.00, "Utilities", False, "upload"),
-            ("2026-07-05", "Zomato", -450.00, "Dining", False, "upload"),
-            ("2026-07-06", "Ola Cabs", -320.00, "Transport", False, "upload"),
-            ("2026-07-08", "Groww Mutual Fund SIP", -5000.00, "Investment", False, "upload"),
-            ("2026-07-10", "Netflix", -649.00, "Entertainment", False, "upload"),
-            ("2026-07-12", "Spotify India", -119.00, "Entertainment", False, "upload"),
-            ("2026-07-14", "Reliance Fresh", -1850.00, "Groceries", False, "upload"),
-            ("2026-07-15", "Uber Rides", -410.00, "Transport", False, "upload"),
-            ("2026-07-18", "Luxury Electronics Store", -45000.00, "Other", True, "upload"),
-            ("2026-07-20", "Chai Point", -95.00, "Dining", False, "upload"),
-            ("2026-07-22", "Electricity Department", -2100.00, "Utilities", False, "upload")
+            # Date, Merchant, Amount (negative for spend), Category, Bank Name, Anomaly, Source
+            ("2026-07-01", "Landlord Rent", -18000.00, "Rent", "HDFC Bank", False, "upload"),
+            ("2026-07-02", "Big Bazaar", -3450.00, "Groceries", "HDFC Bank", False, "upload"),
+            ("2026-07-03", "Swiggy", -680.00, "Dining", "SBI", False, "upload"),
+            ("2026-07-04", "Airtel Broadband", -899.00, "Utilities", "HDFC Bank", False, "upload"),
+            ("2026-07-05", "Zomato", -450.00, "Dining", "ICICI Bank", False, "upload"),
+            ("2026-07-06", "Ola Cabs", -320.00, "Transport", "Axis Bank", False, "upload"),
+            ("2026-07-08", "Groww Mutual Fund SIP", -5000.00, "Investment", "SBI", False, "upload"),
+            ("2026-07-10", "Netflix", -649.00, "Entertainment", "HDFC Bank", False, "upload"),
+            ("2026-07-12", "Spotify India", -119.00, "Entertainment", "ICICI Bank", False, "upload"),
+            ("2026-07-14", "Reliance Fresh", -1850.00, "Groceries", "HDFC Bank", False, "upload"),
+            ("2026-07-15", "Uber Rides", -410.00, "Transport", "Axis Bank", False, "upload"),
+            ("2026-07-18", "Luxury Electronics Store", -45000.00, "Other", "HDFC Bank", True, "upload"),
+            ("2026-07-20", "Chai Point", -95.00, "Dining", "Paytm Payments Bank", False, "upload"),
+            ("2026-07-22", "Electricity Department", -2100.00, "Utilities", "SBI", False, "upload")
         ]
 
         tx_objects = []
-        for d, m, a, c, is_anom, src in sample_txs:
+        for d, m, a, c, b_name, is_anom, src in sample_txs:
             t = Transaction(
                 id=str(uuid.uuid4()),
                 user_id=user_id,
@@ -68,6 +70,7 @@ async def seed_data():
                 merchant=m,
                 amount=a,
                 category=c,
+                bank_name=b_name,
                 anomaly=is_anom,
                 source=src
             )

@@ -1,4 +1,5 @@
 export const categories = ["Groceries", "Dining", "Transport", "Utilities", "Rent", "Entertainment", "Investment", "Contra"];
+export const banks = ["HDFC Bank", "SBI", "ICICI Bank", "Axis Bank", "Kotak Mahindra Bank", "Paytm Payments Bank"];
 
 // Category → semantic color key, cycled across the limited reserved palette
 export const categoryColorKey = (category) => {
@@ -16,14 +17,14 @@ export const categoryColorKey = (category) => {
 };
 
 export const transactions = [
-  { id: "t1", date: "2026-07-02", merchant: "Big Bazaar", category: "Groceries", amount: -2450, anomaly: false },
-  { id: "t2", date: "2026-07-01", merchant: "Swiggy", category: "Dining", amount: -680, anomaly: false },
-  { id: "t3", date: "2026-06-30", merchant: "Ola Cabs", category: "Transport", amount: -320, anomaly: false },
-  { id: "t4", date: "2026-06-29", merchant: "Landlord — Rent", category: "Rent", amount: -18000, anomaly: false },
-  { id: "t5", date: "2026-06-28", merchant: "Unknown POS Terminal", category: "Entertainment", amount: -9200, anomaly: true },
-  { id: "t6", date: "2026-06-27", merchant: "Airtel", category: "Utilities", amount: -899, anomaly: false },
-  { id: "t7", date: "2026-06-25", merchant: "BookMyShow", category: "Entertainment", amount: -600, anomaly: false },
-  { id: "t8", date: "2026-06-24", merchant: "Zomato", category: "Dining", amount: -540, anomaly: false },
+  { id: "t1", date: "2026-07-02", merchant: "Big Bazaar", category: "Groceries", bank_name: "HDFC Bank", amount: -2450, anomaly: false },
+  { id: "t2", date: "2026-07-01", merchant: "Swiggy", category: "Dining", bank_name: "SBI", amount: -680, anomaly: false },
+  { id: "t3", date: "2026-06-30", merchant: "Ola Cabs", category: "Transport", bank_name: "Axis Bank", amount: -320, anomaly: false },
+  { id: "t4", date: "2026-06-29", merchant: "Landlord — Rent", category: "Rent", bank_name: "HDFC Bank", amount: -18000, anomaly: false },
+  { id: "t5", date: "2026-06-28", merchant: "Unknown POS Terminal", category: "Entertainment", bank_name: "ICICI Bank", amount: -9200, anomaly: true },
+  { id: "t6", date: "2026-06-27", merchant: "Airtel", category: "Utilities", bank_name: "HDFC Bank", amount: -899, anomaly: false },
+  { id: "t7", date: "2026-06-25", merchant: "BookMyShow", category: "Entertainment", bank_name: "ICICI Bank", amount: -600, anomaly: false },
+  { id: "t8", date: "2026-06-24", merchant: "Zomato", category: "Dining", bank_name: "Paytm Payments Bank", amount: -540, anomaly: false },
 ];
 
 export const categoryBreakdown = [
