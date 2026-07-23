@@ -1,4 +1,13 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000/api/v1";
+function getApiBase() {
+  if (process.env.NEXT_PUBLIC_API_BASE) {
+    return process.env.NEXT_PUBLIC_API_BASE;
+  }
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname || "localhost";
+    return `http://${host}:8000/api/v1`;
+  }
+  return "http://127.0.0.1:8000/api/v1";
+}
 
 // Helper to get auth headers
 function getHeaders() {
@@ -15,7 +24,7 @@ export async function login(username, password) {
   formData.append("username", username);
   formData.append("password", password);
 
-  const res = await fetch(`${API_BASE}/auth/login`, {
+  const res = await fetch(`${getApiBase()}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -34,7 +43,7 @@ export async function login(username, password) {
 }
 
 export async function register(email, name, password) {
-  const res = await fetch(`${API_BASE}/auth/register`, {
+  const res = await fetch(`${getApiBase()}/auth/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -54,7 +63,7 @@ export async function getTransactions(filters = {}) {
   if (filters.min_amount) params.append("min_amount", filters.min_amount);
   if (filters.query) params.append("query", filters.query);
 
-  const url = `${API_BASE}/transactions/?${params.toString()}`;
+  const url = `${getApiBase()}/transactions/?${params.toString()}`;
   const res = await fetch(url, {
     headers: getHeaders(),
   });
@@ -66,7 +75,7 @@ export async function uploadStatement(file) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch(`${API_BASE}/transactions/upload`, {
+  const res = await fetch(`${getApiBase()}/transactions/upload`, {
     method: "POST",
     headers: getHeaders(),
     body: formData,
@@ -79,7 +88,7 @@ export async function uploadStatement(file) {
 }
 
 export async function updateTransaction(id, updates) {
-  const res = await fetch(`${API_BASE}/transactions/${id}/category`, {
+  const res = await fetch(`${getApiBase()}/transactions/${id}/category`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -96,7 +105,7 @@ export async function updateTransactionCategory(id, category) {
 }
 
 export async function getSummary() {
-  const res = await fetch(`${API_BASE}/insights/summary`, {
+  const res = await fetch(`${getApiBase()}/insights/summary`, {
     headers: getHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch summary metrics");
@@ -104,7 +113,7 @@ export async function getSummary() {
 }
 
 export async function getForecast() {
-  const res = await fetch(`${API_BASE}/insights/forecast`, {
+  const res = await fetch(`${getApiBase()}/insights/forecast`, {
     headers: getHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch forecast data");
@@ -112,7 +121,7 @@ export async function getForecast() {
 }
 
 export async function getAlerts() {
-  const res = await fetch(`${API_BASE}/alerts/`, {
+  const res = await fetch(`${getApiBase()}/alerts/`, {
     headers: getHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch alerts");
@@ -120,7 +129,7 @@ export async function getAlerts() {
 }
 
 export async function updateAlert(id, resolved) {
-  const res = await fetch(`${API_BASE}/alerts/${id}`, {
+  const res = await fetch(`${getApiBase()}/alerts/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -133,7 +142,7 @@ export async function updateAlert(id, resolved) {
 }
 
 export async function askAgent(question) {
-  const res = await fetch(`${API_BASE}/agent/ask`, {
+  const res = await fetch(`${getApiBase()}/agent/ask`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

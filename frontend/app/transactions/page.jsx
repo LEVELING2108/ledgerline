@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, UploadCloud } from "lucide-react";
 import NavBar from "../../components/NavBar";
 import TransactionRow from "../../components/TransactionRow";
 import { getTransactions, updateTransactionCategory } from "../../lib/api";
 import { transactions as initialTransactions, categories, categoryColorKey } from "../../lib/mockData";
 
 export default function TransactionsPage() {
+  const router = useRouter();
   const [rows, setRows] = useState(initialTransactions);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -62,7 +64,16 @@ export default function TransactionsPage() {
     <div className="min-h-screen bg-cream dark:bg-cream-dark">
       <NavBar />
       <main className="mx-auto max-w-5xl space-y-4 px-4 pt-6 pb-24 md:py-6 md:px-6">
-        <p className="text-page-title text-ink dark:text-ink-dark">Transactions</p>
+        <div className="flex items-center justify-between">
+          <p className="text-page-title text-ink dark:text-ink-dark">Transactions</p>
+          <button
+            onClick={() => router.push("/onboarding")}
+            className="inline-flex items-center gap-2 rounded-card bg-teal px-4 py-2 text-body font-medium text-white shadow-sm hover:bg-teal/90 dark:bg-teal-dark dark:hover:bg-teal-dark/90 transition-all duration-subtle"
+          >
+            <UploadCloud size={18} />
+            <span>Upload Statement</span>
+          </button>
+        </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex flex-1 items-center gap-2 rounded-card border border-hairline

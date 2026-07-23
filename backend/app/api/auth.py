@@ -36,14 +36,19 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)) -> A
     return db_user
 
 
+from sqlalchemy import select, func
+
 @router.post("/login", response_model=Token)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
 ) -> Any:
-    # Find user by email (we use username field in OAuth2RequestForm for email)
-    result = await db.execute(select(User).where(User.email == form_data.username))
+    email_clean = form_data.username.strip().lower()
+    password_clean = form_data.password.strip()
+    
+    # Find user by email (case-insensitive and trimmed)
+    result = await db.execute(select(User).where(func.lower(User.email) == email_clean))
     user = result.scalars().first()
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user or not verify_password(password_clean, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect email or password",
